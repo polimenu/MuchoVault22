@@ -276,7 +276,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         // Applies withdraw fee:
         if(vaultInfo[_vaultId].withdrawFee > 0){
             uint256 feeMultiplier = uint256(10000).sub(vaultInfo[_vaultId].withdrawFee);
-            amountOut = amountOut.mul(feeMultiplier).div(100000);
+            amountOut = amountOut.mul(feeMultiplier).div(10000);
         }
 
         muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut);

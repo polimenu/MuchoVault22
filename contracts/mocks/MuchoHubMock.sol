@@ -12,6 +12,7 @@ import "hardhat/console.sol";
 contract MuchoHubMock is IMuchoHub{
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     int256 apr = 10000;
     mapping(address => uint256) lastUpdate;
@@ -25,8 +26,10 @@ contract MuchoHubMock is IMuchoHub{
     function depositFrom(address _investor, address _token, uint256 _amount) external{
         tokenList.add(_token);
         tokenAmount[_token] = tokenAmount[_token].add(_amount);
+        IERC20(_token).safeTransferFrom(_investor, address(this), _amount);
+        //console.log("    SOL - Transferring", _amount);
         if(lastUpdate[_token] == 0){
-            console.log("    SOL - Updating last update", block.timestamp);
+            console.log("    SOL - Updating last updated", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
     }
@@ -36,6 +39,7 @@ contract MuchoHubMock is IMuchoHub{
             console.log("    SOL - Updating last update", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
+        IERC20(_token).safeTransfer(_investor, _amount);
     }
 
     function addProtocol(address _contract) external{}

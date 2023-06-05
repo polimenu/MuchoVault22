@@ -1,17 +1,13 @@
 import { time, loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { MuchoVaultInterface } from "../typechain-types/contracts/MuchoVault";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { MuchoHub, MuchoHubMock, PriceFeedMock } from "../typechain-types";
+import { MuchoHubMock, PriceFeedMock } from "../typechain-types";
 import { BigNumber } from "bignumber.js";
-//import { ethers } from "ethers";
-//import { ethers } from "ethers";
+import { formatBytes32String } from "ethers/lib/utils";
 
 
-describe("MuchoVault", async function () {
-
+describe("MuchoVaultTest", async function () {
 
   async function deployContract(name: string) {
     const [admin, trader, user] = await ethers.getSigners();
@@ -42,6 +38,11 @@ describe("MuchoVault", async function () {
     //Deploy MuchoVault
     const mVault = await (await ethers.getContractFactory("MuchoVault")).deploy();
 
+    //Set ownerships
+    const [admin, trader, user] = await ethers.getSigners();
+    await mVault.grantRole(formatBytes32String("0"), admin.address);
+    await mVault.grantRole(formatBytes32String("TRADER"), trader.address);
+
     //Grant ownership of muchoTokens
     await musdc.transferOwnership(mVault.address);
     await mweth.transferOwnership(mVault.address);
@@ -52,41 +53,42 @@ describe("MuchoVault", async function () {
     await mVault.setMuchoHub(mHub.address);
     await mVault.setBadgeManager(mBadge.address);
 
+    //Create Vaults:
+    await mVault.addVault(usdc.address, musdc.address);
+    await mVault.addVault(weth.address, mweth.address);
+    await mVault.addVault(wbtc.address, mwbtc.address);
+
     return {
       mVault, mHub, tk: [
         { t: usdc.address, m: musdc.address },
         { t: weth.address, m: mweth.address },
         { t: wbtc.address, m: mwbtc.address }
       ], pFeed
+      , admin, trader, user
     };
   }
 
-  describe("Test vaults", async function () {
 
-    var mVault: MuchoVault;
-    var mHub: MuchoHubMock;
-    var tk: { t: string, m: string }[];
-    var admin: SignerWithAddress;
-    var trader: SignerWithAddress;
-    var user: SignerWithAddress;
-    var pFeed: PriceFeedMock;
+  /*var mVault: MuchoVault;
+  var mHub: MuchoHubMock;
+  var tk: { t: string, m: string }[];
+  var admin: SignerWithAddress;
+  var trader: SignerWithAddress;
+  var user: SignerWithAddress;
+  var pFeed: PriceFeedMock;*/
 
-    async function createVaults() {
-      for (var i = 0; i < tk.length; i++) {
-        await mVault.addVault(tk[i].t, tk[i].m);
-      }
-    }
 
-    before(async function () {
-      ({ mVault, mHub, tk, pFeed } = await loadFixture(deployMuchoVault));
-      [admin, trader, user] = await ethers.getSigners();
-    });
+  /*before(async function () {
+    ({ mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault));
+  });*/
 
-    it("Should create 3 vaults", async function () {
-      await createVaults();
+  describe("Vault creation and setup", async function () {
+    it("Should deploy and create 3 vaults", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
     });
 
     it("Vaults token should fit", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       for (var i = 0; i < tk.length; i++) {
         const v = await mVault.getVaultInfo(i);
         expect(v.depositToken).to.equal(tk[i].t);
@@ -98,6 +100,7 @@ describe("MuchoVault", async function () {
     });
 
     it("Should fail when duplicating vaults", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       await expect(mVault.addVault(tk[0].t, tk[0].m)).to.be.revertedWith("MuchoVaultV2.addVault: vault for that deposit or mucho token already exists");
 
       const dummy = await deployContract("mUSDC");
@@ -106,12 +109,9 @@ describe("MuchoVault", async function () {
     });
 
     it("Should close and open vaults", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       for (var i = 0; i < tk.length; i++) {
         await mVault.setOpenVault(i, false);
-        /*var z = await mVault.getVaultInfo(i);
-        console.log("ZETA:");
-        console.log(z);
-        console.log(z.stakable);*/
         expect((await mVault.getVaultInfo(i)).stakable).to.be.false;
         await mVault.setOpenVault(i, true);
         expect((await mVault.getVaultInfo(i)).stakable).to.be.true;
@@ -119,102 +119,122 @@ describe("MuchoVault", async function () {
         expect((await mVault.getVaultInfo(i)).stakable).to.be.false;
       }
     });
+  })
 
+  describe("Deposit", async () => {
     it("Should fail when depositing and it's closed", async function () {
-      /*console.log("ADMIN:");
-      console.log(admin.address);
-      console.log("Token:");
-      console.log(tk[0].t);
-      console.log("Balance:");
-      const i = ethers.getContractAt("USDC", tk[0].t);
-      console.log(await (await i).balanceOf(admin.address));*/
-
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       await mVault.setOpenVault(0, false);
-
       await expect(mVault.connect(admin).deposit(0, 1000)).to.be.revertedWith("MuchoVaultV2.deposit: not stakable");
     });
 
     it("Should fail when amount is 0", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       await mVault.setOpenVault(0, true);
       await expect(mVault.deposit(0, 0)).to.be.revertedWith("MuchoVaultV2.deposit: Insufficent amount");
     });
 
     it("Should deposit 1000 usdc", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const AMOUNT = 1000 * 10 ** 6;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
       //console.log("Amount0", AMOUNT);
       await mVault.setOpenVault(0, true);
-      await mVault.deposit(0, AMOUNT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(AMOUNT);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(AMOUNT);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(AMOUNT);
+      await token.transfer(user.address, AMOUNT);
+      await token.connect(user).approve(mHub.address, AMOUNT);
+      await mVault.connect(user).deposit(0, AMOUNT);
+      expect((await mVault.connect(user).getVaultInfo(0)).totalStaked).to.equal(AMOUNT);
+      expect((await mVault.connect(user).getVaultInfo(0)).stakedFromDeposits).to.equal(AMOUNT);
+      expect(await mVault.connect(user).vaultTotalStaked(0)).to.equal(AMOUNT);
 
-      const token = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await token.balanceOf(admin.address)).to.equal(AMOUNT);
+      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
+      expect(await mtoken.connect(user).balanceOf(user.address)).to.equal(AMOUNT);
     });
 
     it("Should deposit 300 usdc with 1,5% fee", async function () {
-      const CURRENT = Number(await mVault.vaultTotalStaked(0));
-      const CURRENT_HUB = Number(await mHub.getTotalStaked(tk[0].t));
-      const AMOUNT = 300 * 10 ** 6;
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
+      const INITIAL_AMOUNT = 7135 * 10 ** 6;
+      const DEPOSIT = 1562 * 10 ** 6;
       const FEE = 0.015;
-      const DEPOSITED = CURRENT + Math.round(AMOUNT * (1 - FEE));
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
       /*console.log("1Amount", AMOUNT);
       console.log("1CURRENT", CURRENT);
       console.log("1CURRENT_HUB", CURRENT_HUB);
       console.log("1DEPOSITED", DEPOSITED);*/
       await mVault.setDepositFee(0, FEE * 10000);
       await mVault.setOpenVault(0, true);
-      await mVault.deposit(0, AMOUNT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(DEPOSITED);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(DEPOSITED);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(DEPOSITED);
+      await token.transfer(user.address, INITIAL_AMOUNT);
+      await token.connect(user).approve(mHub.address, DEPOSIT);
+      await mVault.connect(user).deposit(0, DEPOSIT);
+      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(Math.round(DEPOSIT*(1-FEE)));
+      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(Math.round(DEPOSIT*(1-FEE)));
+      expect(await mVault.vaultTotalStaked(0)).to.equal(Math.round(DEPOSIT*(1-FEE)));
 
-      const token = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await token.balanceOf(admin.address)).to.equal(DEPOSITED);
+      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
+      expect(await mtoken.balanceOf(user.address)).to.equal(Math.round(DEPOSIT*(1-FEE)));
+      expect(await token.balanceOf(user.address)).to.equal(INITIAL_AMOUNT - DEPOSIT);
     });
+  });
 
+  describe("Withdraw", async () => {
     it("Should withdraw 167 usdc", async function () {
-      const CURRENT = Number(await mVault.vaultTotalStaked(0));
-      const AMOUNT = 167 * 10 ** 6;
-      const DEPOSITED = CURRENT - AMOUNT;
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
+      const DEPOSITED = 1000 * 10 **6;
+      const WITHDRAWN = 167 * 10 ** 6;
+      const EXPECTED = DEPOSITED - WITHDRAWN;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
       /*console.log("Amount", AMOUNT);
       console.log("CURRENT", CURRENT);
       console.log("DEPOSITED", DEPOSITED);*/
       await mVault.setWithdrawFee(0, 0);
       await mVault.setOpenVault(0, true);
-      await mVault.withdraw(0, AMOUNT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(DEPOSITED);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(DEPOSITED);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(DEPOSITED);
+      await token.transfer(user.address, DEPOSITED);
+      await token.connect(user).approve(mHub.address, DEPOSITED);
+      await mVault.connect(user).deposit(0, DEPOSITED);
+      await mVault.connect(user).withdraw(0, WITHDRAWN);
+      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(EXPECTED);
+      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(EXPECTED);
+      expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
 
-      const token = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await token.balanceOf(admin.address)).to.equal(DEPOSITED);
+      expect(await token.balanceOf(user.address)).to.equal(WITHDRAWN);
+      expect(await mtoken.balanceOf(user.address)).to.equal(EXPECTED);
 
       /*console.log("2CURRENT", await mVault.vaultTotalStaked(0));
       console.log("2CURRENT_HUB", await mHub.getTotalStaked(tk[0].t));*/
     });
 
     it("Should withdraw 135 usdc with 0,45% fee", async function () {
-      const CURRENT = Number(await mVault.vaultTotalStaked(0));
-      const AMOUNT = 135 * 10 ** 6;
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
+      const DEPOSITED = 1000 * 10 **6;
+      const WITHDRAWN = 135 * 10 ** 6;
       const FEE = 45;
-      const DEPOSITED = CURRENT - AMOUNT;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
       /*console.log("Amount", AMOUNT);
       console.log("CURRENT", CURRENT);
       console.log("DEPOSITED", DEPOSITED);*/
       await mVault.setWithdrawFee(0, FEE);
       await mVault.setOpenVault(0, true);
-      await mVault.withdraw(0, AMOUNT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(DEPOSITED);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(DEPOSITED);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(DEPOSITED);
+      await token.transfer(user.address, DEPOSITED);
+      await token.connect(user).approve(mHub.address, DEPOSITED);
+      await mVault.connect(user).deposit(0, DEPOSITED);
+      await mVault.connect(user).withdraw(0, WITHDRAWN);
+      const EXPECTED = DEPOSITED - WITHDRAWN;
+      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(EXPECTED);
+      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(EXPECTED);
+      expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
 
-      const token = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await token.balanceOf(admin.address)).to.equal(DEPOSITED);
+      expect(await token.balanceOf(user.address)).to.equal(Math.round(WITHDRAWN * (1 - FEE/10000)));
+      expect(await mtoken.balanceOf(user.address)).to.equal(EXPECTED);
     });
+  });
 
+
+  describe("Earn", async () => {
 
     it("Should earn 200% apr", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const APR = 200;
       await mHub.setApr(APR * 100);
       await mVault.refreshAndUpdateAllVaults();
@@ -249,6 +269,7 @@ describe("MuchoVault", async function () {
     });
 
     it("Should earn and measure properly several positive aprs, without deposits in the middle", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const aprs = [153, 14, 27, 3141, 10000];
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
 
@@ -293,6 +314,7 @@ describe("MuchoVault", async function () {
 
 
     it("Should earn and measure properly several negative aprs, without deposits in the middle", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const aprs = [-153, -14, -27, -3141, -3650000];
       const ONE_DAY_IN_SECS = 24 * 60 * 60;
       const ONE_MONTH_IN_SECS = 30 * ONE_DAY_IN_SECS;
@@ -347,6 +369,7 @@ describe("MuchoVault", async function () {
     });
 
     it("Should earn and measure properly several positive and negative aprs, WITH deposits in the middle", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const aprs = [153, 34, -27, -3141, -3650000];
       const ONE_DAY_IN_SECS = 24 * 60 * 60;
       const ONE_WEEK_IN_SECS = 7 * ONE_DAY_IN_SECS;
@@ -412,6 +435,9 @@ describe("MuchoVault", async function () {
       }
 
     });
+  });
+
+  describe("Swap", async () => {
 
     it("Should properly calculate swap and perform it, in both directions", async function () {
       const SECONDS_PER_DAY = 24 * 3600;
@@ -426,17 +452,16 @@ describe("MuchoVault", async function () {
       }
 
       for (var i = 0; i < TEST.length; i++) {
-        console.log("################ITERATION##################", i);
+        //console.log("################ITERATION##################", i);
 
         var t = TEST[i];
 
-        ({ mVault, mHub, tk, pFeed } = await loadFixture(deployMuchoVault));
-        await createVaults();
+        const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
         await mVault.setOpenAllVault(true);
         await mHub.setApr(t.APR * 100);
 
         //Transfer tokens to user:
-        for(var j = 0; j < tk.length; j++){
+        for (var j = 0; j < tk.length; j++) {
           const ct = await ethers.getContractAt("ERC20", tk[j].t);
           const am = await ct.balanceOf(admin.address);
           await ct.transfer(user.address, am);
@@ -445,19 +470,18 @@ describe("MuchoVault", async function () {
         //Time difference between both deposits
         const depositTimeDiff = t.TIME1 - t.TIME0;
 
-        console.log("Make destination vault deposit (longer timing)");
-        console.log("Deposit Destination");
+        //console.log("Make destination vault deposit (longer timing)");
         await mVault.connect(user).deposit(t.DEST, toBN(t.DEP1, t.DEC1));
 
-        if (depositTimeDiff > 0){
+        if (depositTimeDiff > 0) {
           console.log("Waiting aditional time for destination deposit");
           await time.increase(depositTimeDiff * SECONDS_PER_DAY - 1);
         }
-          
-        console.log("Make source vault deposit (longer timing)");
+
+        //console.log("Make source vault deposit (longer timing)");
         await mVault.connect(user).deposit(t.SOURCE, toBN(t.DEP0, t.DEC0));
 
-        console.log("Generate final APR for both")
+        //console.log("Generate final APR for both")
         await time.increase(t.TIME0 * SECONDS_PER_DAY - 1);
         await mVault.refreshAndUpdateAllVaults();
 
@@ -465,13 +489,13 @@ describe("MuchoVault", async function () {
         const bigStkSrc = toBN(t.STK0, t.DEC0);
         const bigStkDst = toBN(t.STK1, t.DEC1);
 
-        console.log("Assert staked tokens after APR");
+        //console.log("Assert staked tokens after APR");
         const amountSource = await mVault.connect(user).vaultTotalStaked(t.SOURCE);
         expect(amountSource).closeTo(bigStkSrc, Math.round(bigStkSrc * TOLERANCE), "Total source staked after APR is not correct");
         const amountDest = await mVault.connect(user).vaultTotalStaked(t.DEST);
         expect(amountDest).closeTo(bigStkDst, Math.round(bigStkDst * TOLERANCE), "Total dest staked after APR is not correct");
 
-        console.log("Assert exchange mucho - normal token is what expected");
+        //console.log("Assert exchange mucho - normal token is what expected");
         const bigExch0 = toBN(t.EXCH0, 18);
         const bigExch1 = toBN(t.EXCH1, 18);
         const contractExchSrc = await mVault.connect(user).muchoTokenToDepositTokenPrice(t.SOURCE);
@@ -479,27 +503,65 @@ describe("MuchoVault", async function () {
         expect(contractExchSrc).closeTo(bigExch0, Math.round(bigExch0 * TOLERANCE), "Mucho exchange for source vault not correct");
         expect(contractExchDst).closeTo(bigExch1, Math.round(bigExch1 * TOLERANCE), "Mucho exchange for dest vault not correct");
 
-        console.log("Assert mucho dest token got after swap is what expected");
+        //console.log("Assert mucho dest token got after swap is what expected");
         const inAmount = toBN(t.IN, t.DEC0);
         await mVault.setSwapMuchoTokensFee((t.SWAPFEE * 100).toFixed(0));
         const bigOut = toBN(t.OUT, t.DEC1);
         const swapRes = await mVault.connect(user).getSwap(t.SOURCE, inAmount, t.DEST);
         expect(swapRes).closeTo(bigOut, Math.round(bigOut * TOLERANCE), "Mucho swap out value is not correct");
 
-        console.log("Assert swap performs how expected");
+        //console.log("Assert swap performs how expected");
         const initialM0 = await (await ethers.getContractAt("MuchoToken", tk[t.SOURCE].m)).balanceOf(user.address);
         const initialM1 = await (await ethers.getContractAt("MuchoToken", tk[t.DEST].m)).balanceOf(user.address);
-        console.log("Initial mucho source", initialM0);
-        console.log("Initial mucho dest", initialM1);
+        //console.log("Initial mucho source", initialM0);
+        //console.log("Initial mucho dest", initialM1);
         await mVault.connect(user).swap(t.SOURCE, inAmount, t.DEST, swapRes, 0);
         const finalM0 = await (await ethers.getContractAt("MuchoToken", tk[t.SOURCE].m)).balanceOf(user.address);
         const finalM1 = await (await ethers.getContractAt("MuchoToken", tk[t.DEST].m)).balanceOf(user.address);
-        console.log("Final mucho source", finalM0);
-        console.log("Final mucho dest", finalM1);
+        //console.log("Final mucho source", finalM0);
+        //console.log("Final mucho dest", finalM1);
         expect(initialM0.sub(finalM0)).equal(inAmount, "Final amount of muchotoken source is not what I expected");
         expect(finalM1.sub(initialM1)).equal(swapRes, "Final amount of muchotoken source is not what I expected");
       };
     });
+
+
+    it("Should only work with the right roles", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
+
+      //ADMIN functions
+      const ONLY_ADMIN_REASON = "MuchoRoles: Only for admin";
+      await expect(mVault.connect(user).setMuchoHub(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(mVault.connect(trader).setMuchoHub(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+
+      await expect(mVault.connect(user).setPriceFeed(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(mVault.connect(trader).setPriceFeed(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+
+      await expect(mVault.connect(user).setBadgeManager(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(mVault.connect(trader).setBadgeManager(admin.address)).revertedWith(ONLY_ADMIN_REASON);
+
+      await expect(mVault.connect(user).setAprUpdatePeriod(1)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(mVault.connect(trader).setAprUpdatePeriod(1)).revertedWith(ONLY_ADMIN_REASON);
+
+      await expect(mVault.connect(user).addVault(tk[0].t, tk[0].m)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(mVault.connect(trader).addVault(tk[0].t, tk[0].m)).revertedWith(ONLY_ADMIN_REASON);
+
+
+      //ADMIN or TRADER functions
+      const ONLY_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for trader or admin";
+
+      await expect(mVault.connect(user).setSwapMuchoTokensFee(100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).setSwapMuchoTokensFeeForPlan(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).removeSwapMuchoTokensFeeForPlan(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).setDepositFee(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).setWithdrawFee(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).setOpenVault(1, true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).setOpenAllVault(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).updateVault(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).updateAllVaults()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(mVault.connect(user).refreshAndUpdateAllVaults()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+    });
   });
+
 
 });
