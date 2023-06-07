@@ -34,6 +34,13 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
 
     uint256 public lastUpdate;
 
+    function protocolName() public pure returns(string memory){
+        return "MuchoProtocolGMX";
+    }
+    function protocolDescription() public pure returns(string memory){
+        return "Performs a delta neutral strategy against GLP yield from GMX protocol";
+    }
+
     uint256 public aprUpdatePeriod = 1 days;
     function setAprUpdatePeriod(uint256 _seconds) external onlyAdmin{ aprUpdatePeriod = _seconds; }
 

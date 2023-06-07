@@ -14,12 +14,17 @@ struct AprInfo{
 library AprLib{
 
     using SafeMath for uint256;
-
-    function updateApr(AprInfo storage a, uint256 totalStaked, uint256 stakedFromDeposits) internal{
+    
+    function updateApr(AprInfo storage a, int256 apr) internal{
         //Move all the apr periods backwards
         for(uint8 i = 29; i >= 1; i--){
             a.apr[i] = a.apr[i-1];
         }
+        a.apr[0] = apr;
+        a.lastAprUpdate = block.timestamp;
+    }
+
+    function updateApr(AprInfo storage a, uint256 totalStaked, uint256 stakedFromDeposits) internal{
 
         //Calc last period apr and store it
         if(a.lastTotalStaked != 0 && a.lastStakedFromDeposits != 0){
@@ -47,7 +52,7 @@ library AprLib{
             /*console.log("   SOL - timediff", uint256(block.timestamp.sub(a.lastAprUpdate)));
             console.log("   SOL - 1 year", uint256(365 days));*/
 
-            a.apr[0] = profit * int256(10000) * int256(365 days) / (int256(block.timestamp.sub(a.lastAprUpdate)) * avgDeposit);
+            updateApr(a, profit * int256(10000) * int256(365 days) / (int256(block.timestamp.sub(a.lastAprUpdate)) * avgDeposit));
             /*if(a.apr[0] >= 0)
                 console.log("   SOL - APR  (+)", uint256(a.apr[0]));
             else
@@ -56,10 +61,9 @@ library AprLib{
         }
         else{
             //console.log("   SOL - APR  ZERO (zero staked)");
-            a.apr[0] = 0;
+            updateApr(a, 0);
         }
 
-        a.lastAprUpdate = block.timestamp;
         a.lastStakedFromDeposits = stakedFromDeposits;
         a.lastTotalStaked = totalStaked;
     }

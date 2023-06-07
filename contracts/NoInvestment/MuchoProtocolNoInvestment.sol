@@ -20,6 +20,14 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     IPriceFeed priceFeed;
     EnumerableSet.AddressSet tokenList;
 
+
+    function protocolName() public pure returns(string memory){
+        return "MuchoProtocolNoInvestment";
+    }
+    function protocolDescription() public pure returns(string memory){
+        return "Stores tokens without investing them";
+    }
+
     function setPriceFeed(IPriceFeed _feed) onlyAdmin external{
         priceFeed = _feed;
     }
