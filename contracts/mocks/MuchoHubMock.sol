@@ -76,7 +76,7 @@ contract MuchoHubMock is IMuchoHub{
         }
     }
 
-    function getTotalNotInvested(address _token) external view returns(uint256){
+    function getTotalNotInvested(address _token) external pure returns(uint256){
         return 0;
     }
     function getTotalStaked(address _token) external view returns(uint256){

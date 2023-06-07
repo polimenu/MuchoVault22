@@ -26,6 +26,9 @@ Vistas (públicas): getApr
 */
 
 interface IMuchoProtocol{
+    function protocolName() external returns(string memory);
+    function protocolDescription() external returns(string memory);
+
     function refreshInvestment() external;
     function cycleRewards() external;
 
