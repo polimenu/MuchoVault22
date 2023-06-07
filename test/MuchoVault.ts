@@ -5,16 +5,16 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { MuchoHubMock, PriceFeedMock } from "../typechain-types";
 import { BigNumber } from "bignumber.js";
 import { formatBytes32String } from "ethers/lib/utils";
-import { ethers } from "ethers";
+import { ethers as eth } from "ethers";
 
 
 describe("MuchoVaultTest", async function () {
 
-  const toBN = (num: Number, dec: Number): ethers.BigNumber => {
-    return ethers.BigNumber.from(new BigNumber(num.toString() + "E" + dec.toString()).decimalPlaces(0).toString());
+  const toBN = (num: Number, dec: Number): eth.BigNumber => {
+    return eth.BigNumber.from(new BigNumber(num.toString() + "E" + dec.toString()).decimalPlaces(0).toString());
   }
 
-  const fromBN = (bn: ethers.BigNumber, dec: number): number => {
+  const fromBN = (bn: eth.BigNumber, dec: number): number => {
     return Number(bn) / (10 ** dec);
   }
 
@@ -307,15 +307,15 @@ describe("MuchoVaultTest", async function () {
       for (var i = 0; i < aprs.length; i++) {
         await mHub.setApr(aprs[i] * 100);
         await mVault.refreshAndUpdateAllVaults();
-        let staked = await mVault.connect(user).vaultTotalStaked(0);
-        const earnPerSec = staked * aprs[i] / (100 * ONE_YEAR_IN_SECS);
+        let staked:eth.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
+        const earnPerSec = Number(staked) * aprs[i] / (100 * ONE_YEAR_IN_SECS);
         const timeBefore = await time.latest();
         await time.increase(ONE_YEAR_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
         const lapse = (await time.latest()) - timeBefore;
         //console.log("Staked", staked);
         let newStaked = await mVault.connect(user).vaultTotalStaked(0);
-        let expected = ethers.BigNumber.from(staked).add(Math.round(earnPerSec * lapse));
+        let expected = eth.BigNumber.from(staked).add(Math.round(earnPerSec * lapse));
 
         /*console.log("Check staked");
         console.log("apr", aprs[i]);
@@ -327,9 +327,9 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).to.be.closeTo(expected, expected.div(100000), "APR earned is not what expected to be (${i})");
 
         //console.log("Check apr");
-        let aprsVault = await mVault.connect(user).getLastPeriodsApr(0);
+        let aprsVault:eth.BigNumber[] = await mVault.connect(user).getLastPeriodsApr(0);
         console.log("aprsVault", aprsVault);
-        expect(Math.round(aprsVault[0] / 100)).to.equal(aprs[i], `APR calculated by vault is not what is earned (${i})`);
+        expect(Math.round(Number(aprsVault[0]) / 100)).to.equal(aprs[i], `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
         /*console.log("Staked", newStaked);
@@ -363,21 +363,21 @@ describe("MuchoVaultTest", async function () {
         await mHub.setApr(aprs[i] * 100);
         await mVault.refreshAndUpdateAllVaults();
         let staked = await mVault.connect(user).vaultTotalStaked(0);
-        //const earnPerSec = staked * aprs[i] / (100 * ONE_YEAR_IN_SECS);//ethers.BigNumber.from(staked).mul(aprs[i]).div(100).div(ONE_YEAR_IN_SECS);
+        //const earnPerSec = staked * aprs[i] / (100 * ONE_YEAR_IN_SECS);//eth.BigNumber.from(staked).mul(aprs[i]).div(100).div(ONE_YEAR_IN_SECS);
         const timeBefore = await time.latest();
         await time.increase(ONE_DAY_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
         const lapse = (await time.latest()) - timeBefore;
         //console.log("Doing APR", aprs[i]);
         //console.log("Staked", staked);
-        const newStaked: ethers.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
-        const profit: ethers.BigNumber = ethers.BigNumber.from(staked).mul(aprs[i]).mul(lapse).div(100).div(ONE_YEAR_IN_SECS);   //ethers.BigNumber.from(earnPerSec).mul(lapse);
+        const newStaked: eth.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
+        const profit: eth.BigNumber = eth.BigNumber.from(staked).mul(aprs[i]).mul(lapse).div(100).div(ONE_YEAR_IN_SECS);   //eth.BigNumber.from(earnPerSec).mul(lapse);
         //console.log("profit", profit);
-        let expected: ethers.BigNumber = ethers.BigNumber.from(staked).add(profit);
+        let expected: eth.BigNumber = eth.BigNumber.from(staked).add(profit);
         //console.log("1st expected", expected);
         let realApr = aprs[i];
         if (expected.lt(0)) {
-          expected = ethers.BigNumber.from(0);
+          expected = eth.BigNumber.from(0);
           realApr = -100 * ONE_YEAR_IN_SECS / lapse;
         }
 
@@ -391,9 +391,9 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).equal(expected, `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        const aprsVault = await mVault.getLastPeriodsApr(0);
+        const aprsVault:eth.BigNumber[] = await mVault.getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
-        expect(aprsVault[0] / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
+        expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
         /*console.log("Staked", newStaked);
@@ -435,23 +435,23 @@ describe("MuchoVaultTest", async function () {
         await mVault.refreshAndUpdateAllVaults();
         await mHub.setApr(aprs[i] * 100);
         const timeBefore = await time.latest();
-        let staked = await mVault.connect(user).vaultTotalStaked(0);
-        const earnPerSec = ethers.BigNumber.from(Math.round(staked * aprs[i] / (100 * ONE_YEAR_IN_SECS)));
+        let staked:eth.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
+        const earnPerSec = eth.BigNumber.from(Math.round(Number(staked) * aprs[i] / (100 * ONE_YEAR_IN_SECS)));
         await time.increase(ONE_WEEK_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
         const lapse = (await time.latest()) - timeBefore;
         //console.log("Staked", staked);
         //console.log("earnPerSec", earnPerSec);
         //console.log("lapse", lapse);
-        let newStaked: ethers.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
-        let profit = ethers.BigNumber.from(earnPerSec).mul(lapse);
+        let newStaked: eth.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
+        let profit = eth.BigNumber.from(earnPerSec).mul(lapse);
         //console.log("newStaked", newStaked);
         //console.log("profit", profit);
-        let expected = ethers.BigNumber.from(staked).add(profit);
+        let expected = eth.BigNumber.from(staked).add(profit);
         //console.log("1st expected", expected);
         let realApr = aprs[i];
         if (expected.lte(0)) {
-          expected = ethers.BigNumber.from(0);
+          expected = eth.BigNumber.from(0);
           realApr = -100 * ONE_YEAR_IN_SECS / lapse;
         }
 
@@ -462,12 +462,12 @@ describe("MuchoVaultTest", async function () {
         console.log("lapse", lapse);
         console.log("newStaked", newStaked);
         console.log("expected", expected);*/
-        expect(newStaked).to.be.closeTo(expected, Math.round(expected / 1000), `APR earned is not what expected to be (${i})`);
+        expect(newStaked).to.be.closeTo(expected, Math.round(Number(expected) / 1000), `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        let aprsVault = await mVault.connect(user).getLastPeriodsApr(0);
+        let aprsVault:eth.BigNumber[] = await mVault.connect(user).getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
-        expect(aprsVault[0] / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
+        expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
         /*console.log("Staked", newStaked);
@@ -528,24 +528,24 @@ describe("MuchoVaultTest", async function () {
 
         //console.log("Assert staked tokens after APR");
         const amountSource = await mVault.connect(user).vaultTotalStaked(t.SOURCE);
-        expect(amountSource).closeTo(bigStkSrc, Math.round(bigStkSrc * TOLERANCE), "Total source staked after APR is not correct");
+        expect(amountSource).closeTo(bigStkSrc, Math.round(Number(bigStkSrc) * TOLERANCE), "Total source staked after APR is not correct");
         const amountDest = await mVault.connect(user).vaultTotalStaked(t.DEST);
-        expect(amountDest).closeTo(bigStkDst, Math.round(bigStkDst * TOLERANCE), "Total dest staked after APR is not correct");
+        expect(amountDest).closeTo(bigStkDst, Math.round(Number(bigStkDst) * TOLERANCE), "Total dest staked after APR is not correct");
 
         //console.log("Assert exchange mucho - normal token is what expected");
         const bigExch0 = toBN(t.EXCH0, 18);
         const bigExch1 = toBN(t.EXCH1, 18);
         const contractExchSrc = await mVault.connect(user).muchoTokenToDepositTokenPrice(t.SOURCE);
         const contractExchDst = await mVault.connect(user).muchoTokenToDepositTokenPrice(t.DEST);
-        expect(contractExchSrc).closeTo(bigExch0, Math.round(bigExch0 * TOLERANCE), "Mucho exchange for source vault not correct");
-        expect(contractExchDst).closeTo(bigExch1, Math.round(bigExch1 * TOLERANCE), "Mucho exchange for dest vault not correct");
+        expect(contractExchSrc).closeTo(bigExch0, Math.round(Number(bigExch0) * TOLERANCE), "Mucho exchange for source vault not correct");
+        expect(contractExchDst).closeTo(bigExch1, Math.round(Number(bigExch1) * TOLERANCE), "Mucho exchange for dest vault not correct");
 
         //console.log("Assert mucho dest token got after swap is what expected");
         const inAmount = toBN(t.IN, t.DEC0);
         await mVault.setSwapMuchoTokensFee((t.SWAPFEE * 100).toFixed(0));
         const bigOut = toBN(t.OUT, t.DEC1);
         const swapRes = await mVault.connect(user).getSwap(t.SOURCE, inAmount, t.DEST);
-        expect(swapRes).closeTo(bigOut, Math.round(bigOut * TOLERANCE), "Mucho swap out value is not correct");
+        expect(swapRes).closeTo(bigOut, Math.round(Number(bigOut) * TOLERANCE), "Mucho swap out value is not correct");
 
         //console.log("Assert swap performs how expected");
         const initialM0 = await (await ethers.getContractAt("MuchoToken", tk[t.SOURCE].m)).balanceOf(user.address);
