@@ -29,7 +29,7 @@ contract MuchoHubMock is IMuchoHub{
         IERC20(_token).safeTransferFrom(_investor, address(this), _amount);
         //console.log("    SOL - Transferring", _amount);
         if(lastUpdate[_token] == 0){
-            console.log("    SOL - Updating last updated", block.timestamp);
+            //console.log("    SOL - Updating last updated", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
     }

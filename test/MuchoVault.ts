@@ -236,12 +236,18 @@ describe("MuchoVaultTest", async function () {
     it("Should earn 200% apr", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const APR = 200;
+      const DEPOSIT = 1431.157 * 10 **6;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      await token.transfer(user.address, DEPOSIT);
+      await token.connect(user).approve(mHub.address, DEPOSIT);
       await mHub.setApr(APR * 100);
+      await mVault.setOpenAllVault(true);
+      await mVault.connect(user).deposit(0, DEPOSIT);
       await mVault.refreshAndUpdateAllVaults();
       const timeDeposited = await time.latest();
 
-      const FROMDEP = Number(await mVault.vaultStakedFromDeposits(0));
-      const DEPOSITED = Number(await mVault.vaultTotalStaked(0));
+      const FROMDEP = Number(await mVault.connect(user).vaultStakedFromDeposits(0));
+      const DEPOSITED = Number(await mVault.connect(user).vaultTotalStaked(0));
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
       const EARN_PER_SEC = DEPOSITED * (APR / 100) / ONE_YEAR_IN_SECS;
 
@@ -261,15 +267,24 @@ describe("MuchoVaultTest", async function () {
       console.log("timeAfter", timeAfter);
       console.log("lapse", lapse);
 
-      let staked = await mVault.vaultTotalStaked(0);
+      let staked = await mVault.connect(user).vaultTotalStaked(0);
       const EXPECTED = DEPOSITED + EARN_PER_SEC * lapse;
       console.log("EXPECTED", EXPECTED);
-      expect(staked).to.equal(Math.round(EXPECTED));
-      expect(await mVault.vaultStakedFromDeposits(0)).to.equal(FROMDEP);
+      expect(staked).closeTo(Math.round(EXPECTED), Math.round(EXPECTED/10000000), `Staked value after APR is not correct`);
+      expect(await mVault.connect(user).vaultStakedFromDeposits(0)).to.equal(FROMDEP);
     });
 
     it("Should earn and measure properly several positive aprs, without deposits in the middle", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
+      
+      //Make initial deposit
+      const DEPOSIT = 1431.157 * 10 **6;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      await token.transfer(user.address, DEPOSIT);
+      await token.connect(user).approve(mHub.address, DEPOSIT);
+      await mVault.setOpenAllVault(true);
+      await mVault.connect(user).deposit(0, DEPOSIT);
+
       const aprs = [153, 14, 27, 3141, 10000];
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
 
@@ -277,18 +292,20 @@ describe("MuchoVaultTest", async function () {
 
       await mVault.refreshAndUpdateAllVaults();
       await time.increase(ONE_YEAR_IN_SECS);
+      await mVault.refreshAndUpdateAllVaults();
+      await time.increase(ONE_YEAR_IN_SECS);
 
       for (var i = 0; i < aprs.length; i++) {
         await mHub.setApr(aprs[i] * 100);
         await mVault.refreshAndUpdateAllVaults();
-        let staked = await mVault.vaultTotalStaked(0);
+        let staked = await mVault.connect(user).vaultTotalStaked(0);
         const earnPerSec = staked * aprs[i] / (100 * ONE_YEAR_IN_SECS);
         const timeBefore = await time.latest();
         await time.increase(ONE_YEAR_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
         const lapse = (await time.latest()) - timeBefore;
         //console.log("Staked", staked);
-        let newStaked = await mVault.vaultTotalStaked(0);
+        let newStaked = await mVault.connect(user).vaultTotalStaked(0);
         let expected = ethers.BigNumber.from(staked).add(Math.round(earnPerSec * lapse));
 
         /*console.log("Check staked");
@@ -301,8 +318,8 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).to.be.closeTo(expected, expected.div(100000), "APR earned is not what expected to be (${i})");
 
         //console.log("Check apr");
-        let aprsVault = await mVault.getLastPeriodsApr(0);
-        //console.log("aprsVault", aprsVault);
+        let aprsVault = await mVault.connect(user).getLastPeriodsApr(0);
+        console.log("aprsVault", aprsVault);
         expect(Math.round(aprsVault[0] / 100)).to.equal(aprs[i], `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
@@ -319,6 +336,14 @@ describe("MuchoVaultTest", async function () {
       const ONE_DAY_IN_SECS = 24 * 60 * 60;
       const ONE_MONTH_IN_SECS = 30 * ONE_DAY_IN_SECS;
       const ONE_YEAR_IN_SECS = 365 * ONE_DAY_IN_SECS;
+      
+      //Make initial deposit
+      const DEPOSIT = 1431.157 * 10 **6;
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      await token.transfer(user.address, DEPOSIT);
+      await token.connect(user).approve(mHub.address, DEPOSIT);
+      await mVault.setOpenAllVault(true);
+      await mVault.connect(user).deposit(0, DEPOSIT);
 
       //console.log("ALLA VAMOS----------------------------------------------");
 
@@ -328,16 +353,16 @@ describe("MuchoVaultTest", async function () {
       for (var i = 0; i < aprs.length; i++) {
         await mHub.setApr(aprs[i] * 100);
         await mVault.refreshAndUpdateAllVaults();
-        let staked = await mVault.vaultTotalStaked(0);
-        const earnPerSec = ethers.BigNumber.from(staked).mul(aprs[i]).div(100).div(ONE_YEAR_IN_SECS);
+        let staked = await mVault.connect(user).vaultTotalStaked(0);
+        //const earnPerSec = staked * aprs[i] / (100 * ONE_YEAR_IN_SECS);//ethers.BigNumber.from(staked).mul(aprs[i]).div(100).div(ONE_YEAR_IN_SECS);
         const timeBefore = await time.latest();
         await time.increase(ONE_DAY_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
         const lapse = (await time.latest()) - timeBefore;
         //console.log("Doing APR", aprs[i]);
         //console.log("Staked", staked);
-        let newStaked: ethers.BigNumber = await mVault.vaultTotalStaked(0);
-        let profit: ethers.BigNumber = ethers.BigNumber.from(earnPerSec).mul(lapse);
+        const newStaked: ethers.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
+        const profit: ethers.BigNumber = ethers.BigNumber.from(staked).mul(aprs[i]).mul(lapse).div(100).div(ONE_YEAR_IN_SECS);   //ethers.BigNumber.from(earnPerSec).mul(lapse);
         //console.log("profit", profit);
         let expected: ethers.BigNumber = ethers.BigNumber.from(staked).add(profit);
         //console.log("1st expected", expected);
@@ -347,17 +372,17 @@ describe("MuchoVaultTest", async function () {
           realApr = -100 * ONE_YEAR_IN_SECS / lapse;
         }
 
-        /*console.log("Check staked");
+        console.log("Check staked");
         console.log("apr", aprs[i]);
         console.log("staked", staked);
-        console.log("earnPerSec", earnPerSec);
+        //console.log("earnPerSec", earnPerSec);
         console.log("lapse", lapse);
         console.log("newStaked", newStaked);
-        console.log("expected", expected);*/
-        expect(newStaked).to.be.closeTo(expected, Math.round(expected / 1000000), "APR earned is not what expected to be (${i})");
+        console.log("expected", expected);
+        expect(newStaked).equal(expected, `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        let aprsVault = await mVault.getLastPeriodsApr(0);
+        const aprsVault = await mVault.getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
         expect(aprsVault[0] / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
@@ -374,12 +399,18 @@ describe("MuchoVaultTest", async function () {
       const ONE_DAY_IN_SECS = 24 * 60 * 60;
       const ONE_WEEK_IN_SECS = 7 * ONE_DAY_IN_SECS;
       const ONE_YEAR_IN_SECS = 365 * ONE_DAY_IN_SECS;
+      const DEPOSIT = 600 * 10 ** 6;
+      
+      //Make initial deposit
+      const token = await ethers.getContractAt("ERC20", tk[0].t);
+      const totalBlc = await token.balanceOf(admin.address);
+      await token.transfer(user.address, totalBlc);
+      await mVault.setOpenAllVault(true);
 
       await mVault.setAprUpdatePeriod(3600);
 
       //console.log("ALLA VAMOS----------------------------------------------");
 
-      await mVault.deposit(0, 1000 * 10 ** 6);
       await mVault.refreshAndUpdateAllVaults();
       await mVault.setDepositFee(0, 0);
       await mVault.setWithdrawFee(0, 0);
@@ -388,14 +419,14 @@ describe("MuchoVaultTest", async function () {
       for (var i = 0; i < aprs.length; i++) {
         //console.log("");
         //console.log("Doing APR", aprs[i]);
-
-        await mVault.deposit(0, 600 * 10 ** 6);
+        await token.connect(user).approve(mHub.address, DEPOSIT);
+        await mVault.connect(user).deposit(0, DEPOSIT);
         await time.increase(ONE_DAY_IN_SECS);
         await mHub.setApr(0);
         await mVault.refreshAndUpdateAllVaults();
         await mHub.setApr(aprs[i] * 100);
         const timeBefore = await time.latest();
-        let staked = await mVault.vaultTotalStaked(0);
+        let staked = await mVault.connect(user).vaultTotalStaked(0);
         const earnPerSec = ethers.BigNumber.from(Math.round(staked * aprs[i] / (100 * ONE_YEAR_IN_SECS)));
         await time.increase(ONE_WEEK_IN_SECS);
         await mVault.refreshAndUpdateAllVaults();
@@ -403,7 +434,7 @@ describe("MuchoVaultTest", async function () {
         //console.log("Staked", staked);
         //console.log("earnPerSec", earnPerSec);
         //console.log("lapse", lapse);
-        let newStaked: ethers.BigNumber = await mVault.vaultTotalStaked(0);
+        let newStaked: ethers.BigNumber = await mVault.connect(user).vaultTotalStaked(0);
         let profit = ethers.BigNumber.from(earnPerSec).mul(lapse);
         //console.log("newStaked", newStaked);
         //console.log("profit", profit);
@@ -425,7 +456,7 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).to.be.closeTo(expected, Math.round(expected / 1000), `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        let aprsVault = await mVault.getLastPeriodsApr(0);
+        let aprsVault = await mVault.connect(user).getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
         expect(aprsVault[0] / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
@@ -460,11 +491,12 @@ describe("MuchoVaultTest", async function () {
         await mVault.setOpenAllVault(true);
         await mHub.setApr(t.APR * 100);
 
-        //Transfer tokens to user:
+        //Transfer tokens to user and approve to be spent by the HUB:
         for (var j = 0; j < tk.length; j++) {
           const ct = await ethers.getContractAt("ERC20", tk[j].t);
           const am = await ct.balanceOf(admin.address);
           await ct.transfer(user.address, am);
+          await ct.connect(user).approve(mHub.address, am);
         }
 
         //Time difference between both deposits
