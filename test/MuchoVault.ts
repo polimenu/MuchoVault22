@@ -5,9 +5,18 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { MuchoHubMock, PriceFeedMock } from "../typechain-types";
 import { BigNumber } from "bignumber.js";
 import { formatBytes32String } from "ethers/lib/utils";
+import { ethers } from "ethers";
 
 
 describe("MuchoVaultTest", async function () {
+
+  const toBN = (num: Number, dec: Number): ethers.BigNumber => {
+    return ethers.BigNumber.from(new BigNumber(num.toString() + "E" + dec.toString()).decimalPlaces(0).toString());
+  }
+
+  const fromBN = (bn: ethers.BigNumber, dec: number): number => {
+    return Number(bn) / (10 ** dec);
+  }
 
   async function deployContract(name: string) {
     const [admin, trader, user] = await ethers.getSigners();
@@ -470,17 +479,13 @@ describe("MuchoVaultTest", async function () {
 
   describe("Swap", async () => {
 
-    it("Should properly calculate swaps and perform them", async function () {
+    it("Swap battery without NFT", async function () {
       const SECONDS_PER_DAY = 24 * 3600;
 
       //Test battery: https://docs.google.com/spreadsheets/d/1OBsrnXMI5orVMv7alr9ZSxZ4F0rT6xvfJxqut-F71yY/edit#gid=765633564
       const TEST = [{ "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0.85, "STK0": 1.406917808219178, "STK1": 11.438356164383562, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 0.2, "OUT": 2.817947368421053 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0, "STK0": 1.406917808219178, "STK1": 11.438356164383562, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 0.13, "OUT": 1.8473684210526313 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0, "STK0": 1.406917808219178, "STK1": 11.438356164383562, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 0.86, "OUT": 12.221052631578948 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0, "STK0": 1.406917808219178, "STK1": 11.438356164383562, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 0.46, "OUT": 6.536842105263158 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 123, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0, "STK0": 1.3543479452054794, "STK1": 11.01095890410959, "EXCH0": 1.101095890410959, "EXCH1": 1.101095890410959, "IN": 1.2, "OUT": 17.052631578947366 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 123, "TIME0": 30, "TIME1": 30, "SWAPFEE": 1.24, "STK0": 1.3543479452054794, "STK1": 11.01095890410959, "EXCH0": 1.101095890410959, "EXCH1": 1.101095890410959, "IN": 0.08, "OUT": 1.122745263157895 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 123, "TIME0": 30, "TIME1": 60, "SWAPFEE": 5.22, "STK0": 1.3543479452054794, "STK1": 12.021917808219179, "EXCH0": 1.101095890410959, "EXCH1": 1.2021917808219178, "IN": 0.36, "OUT": 4.440999820563259 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": 123, "TIME0": 30, "TIME1": 60, "SWAPFEE": 2.01, "STK0": 1.3543479452054794, "STK1": 12.021917808219179, "EXCH0": 1.101095890410959, "EXCH1": 1.2021917808219178, "IN": 0.09, "OUT": 1.1478517947272466 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -150, "TIME0": 30, "TIME1": 30, "SWAPFEE": 4.3, "STK0": 1.0783561643835617, "STK1": 8.767123287671232, "EXCH0": 0.8767123287671234, "EXCH1": 0.8767123287671232, "IN": 0.62, "OUT": 8.431673684210526 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -150, "TIME0": 30, "TIME1": 30, "SWAPFEE": 3.73, "STK0": 1.0783561643835617, "STK1": 8.767123287671232, "EXCH0": 0.8767123287671234, "EXCH1": 0.8767123287671232, "IN": 0.05, "OUT": 0.6840236842105265 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -150, "TIME0": 30, "TIME1": 30, "SWAPFEE": 8.37, "STK0": 1.0783561643835617, "STK1": 8.767123287671232, "EXCH0": 0.8767123287671234, "EXCH1": 0.8767123287671232, "IN": 0.82, "OUT": 10.677306315789473 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -150, "TIME0": 30, "TIME1": 30, "SWAPFEE": 6.77, "STK0": 1.0783561643835617, "STK1": 8.767123287671232, "EXCH0": 0.8767123287671234, "EXCH1": 0.8767123287671232, "IN": 0.17, "OUT": 2.25224052631579 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -57, "TIME0": 5, "TIME1": 30, "SWAPFEE": 9.78, "STK0": 1.2203958904109589, "STK1": 9.531506849315068, "EXCH0": 0.9921917808219178, "EXCH1": 0.9531506849315068, "IN": 1.13, "OUT": 15.080838538448734 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -57, "TIME0": 5, "TIME1": 30, "SWAPFEE": 1.7, "STK0": 1.2203958904109589, "STK1": 9.531506849315068, "EXCH0": 0.9921917808219178, "EXCH1": 0.9531506849315068, "IN": 0.73, "OUT": 10.615014749398648 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -57, "TIME0": 30, "TIME1": 60, "SWAPFEE": 5.73, "STK0": 1.1723753424657535, "STK1": 9.063013698630137, "EXCH0": 0.9531506849315069, "EXCH1": 0.9063013698630137, "IN": 0.79, "OUT": 11.130115969102016 }, { "SOURCE": 2, "DEST": 1, "DEP0": 1.23, "DEP1": 10, "DEC0": 12, "DEC1": 18, "PRICE0": 27000, "PRICE1": 1900, "APR": -57, "TIME0": 30, "TIME1": 60, "SWAPFEE": 5.84, "STK0": 1.1723753424657535, "STK1": 9.063013698630137, "EXCH0": 0.9531506849315069, "EXCH1": 0.9063013698630137, "IN": 0.06, "OUT": 0.8443388862725132 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 6.91, "STK0": 14.492397260273972, "STK1": 1.6814383561643835, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 1.13, "OUT": 0.0740237888888889 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 4.22, "STK0": 14.492397260273972, "STK1": 1.6814383561643835, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 1.4, "OUT": 0.09436103703703702 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 0.01, "STK0": 14.492397260273972, "STK1": 1.6814383561643835, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 4.7, "OUT": 0.3307076666666667 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 175, "TIME0": 30, "TIME1": 30, "SWAPFEE": 9.39, "STK0": 14.492397260273972, "STK1": 1.6814383561643835, "EXCH0": 1.143835616438356, "EXCH1": 1.143835616438356, "IN": 0.54, "OUT": 0.034431800000000005 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 123, "TIME0": 15, "TIME1": 20, "SWAPFEE": 6.42, "STK0": 13.310442465753425, "STK1": 1.5690739726027396, "EXCH0": 1.0505479452054796, "EXCH1": 1.0673972602739725, "IN": 7.97, "OUT": 0.5165602611348773 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 123, "TIME0": 15, "TIME1": 20, "SWAPFEE": 9.58, "STK0": 13.310442465753425, "STK1": 1.5690739726027396, "EXCH0": 1.0505479452054796, "EXCH1": 1.0673972602739725, "IN": 7.79, "OUT": 0.48784469992870194 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 123, "TIME0": 15, "TIME1": 20, "SWAPFEE": 8.46, "STK0": 13.310442465753425, "STK1": 1.5690739726027396, "EXCH0": 1.0505479452054796, "EXCH1": 1.0673972602739725, "IN": 6.47, "OUT": 0.4101992098343981 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": 123, "TIME0": 15, "TIME1": 20, "SWAPFEE": 5.78, "STK0": 13.310442465753425, "STK1": 1.5690739726027396, "EXCH0": 1.0505479452054796, "EXCH1": 1.0673972602739725, "IN": 6.74, "OUT": 0.4398277503555405 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -150, "TIME0": 15, "TIME1": 20, "SWAPFEE": 1.9, "STK0": 11.888972602739726, "STK1": 1.3491780821917807, "EXCH0": 0.9383561643835616, "EXCH1": 0.9178082191780821, "IN": 5.1, "OUT": 0.3599521641791045 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -150, "TIME0": 15, "TIME1": 20, "SWAPFEE": 1.85, "STK0": 11.888972602739726, "STK1": 1.3491780821917807, "EXCH0": 0.9383561643835616, "EXCH1": 0.9178082191780821, "IN": 4.2, "OUT": 0.29658228026534006 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -150, "TIME0": 12, "TIME1": 48, "SWAPFEE": 2.99, "STK0": 12.04517808219178, "STK1": 1.180027397260274, "EXCH0": 0.9506849315068493, "EXCH1": 0.8027397260273973, "IN": 7.41, "OUT": 0.5990821832006067 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -150, "TIME0": 12, "TIME1": 48, "SWAPFEE": 5.81, "STK0": 12.04517808219178, "STK1": 1.180027397260274, "EXCH0": 0.9506849315068493, "EXCH1": 0.8027397260273973, "IN": 7.54, "OUT": 0.591872053065352 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -57, "TIME0": 12, "TIME1": 48, "SWAPFEE": 9.91, "STK0": 12.432567671232876, "STK1": 1.3598104109589042, "EXCH0": 0.9812602739726027, "EXCH1": 0.9250410958904111, "IN": 9.76, "OUT": 0.6563559569403308 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -57, "TIME0": 12, "TIME1": 48, "SWAPFEE": 0.85, "STK0": 12.432567671232876, "STK1": 1.3598104109589042, "EXCH0": 0.9812602739726027, "EXCH1": 0.9250410958904111, "IN": 5.23, "OUT": 0.3870859730811252 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -57, "TIME0": 12, "TIME1": 48, "SWAPFEE": 6.53, "STK0": 12.432567671232876, "STK1": 1.3598104109589042, "EXCH0": 0.9812602739726027, "EXCH1": 0.9250410958904111, "IN": 8.93, "OUT": 0.6230698380242818 }, { "SOURCE": 1, "DEST": 2, "DEP0": 12.67, "DEP1": 1.47, "DEC0": 18, "DEC1": 12, "PRICE0": 1900, "PRICE1": 27000, "APR": -57, "TIME0": 12, "TIME1": 48, "SWAPFEE": 1.01, "STK0": 12.432567671232876, "STK1": 1.3598104109589042, "EXCH0": 0.9812602739726027, "EXCH1": 0.9250410958904111, "IN": 2.78, "OUT": 0.20542303754250635 }];
 
       const TOLERANCE = 0.0000001; //0.00001% tolerance in differences because of bignumber handling
-
-      const toBN = (num: Number, dec: Number): ethers.BigNumber => {
-        return ethers.BigNumber.from(new BigNumber(num.toString() + "E" + dec.toString()).decimalPlaces(0).toString());
-      }
 
       for (var i = 0; i < TEST.length; i++) {
         //console.log("################ITERATION##################", i);
@@ -558,7 +563,7 @@ describe("MuchoVaultTest", async function () {
     });
 
 
-    it("Should properly calculate swap and perform it with an NFT, using the right swap fee", async function () {
+    it("Swap with an NFT, using the right swap fee", async function () {
       const SECONDS_PER_DAY = 24 * 3600;
 
       const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge } = await loadFixture(deployMuchoVault);
@@ -568,9 +573,10 @@ describe("MuchoVaultTest", async function () {
       await mBadge.addUserToPlan(user.address, 4);
 
       //set Fees
-      await mVault.setSwapMuchoTokensFee(1500);
-      await mVault.setSwapMuchoTokensFeeForPlan(3, 1400);
-      await mVault.setSwapMuchoTokensFeeForPlan(4, 1200);
+      const FEE_STD = 150, FEE1 = 140, FEE_MIN = 120, FEE_MIN2 = 110, FEE_MIN3 = 75;
+      await mVault.setSwapMuchoTokensFee(FEE_STD);
+      await mVault.setSwapMuchoTokensFeeForPlan(3, FEE1);
+      await mVault.setSwapMuchoTokensFeeForPlan(4, FEE_MIN);
 
       //Transfer tokens to user, approve to be spent by the HUB, and deposit them:
       await mVault.setOpenAllVault(true);
@@ -579,11 +585,41 @@ describe("MuchoVaultTest", async function () {
         const am = await ct.balanceOf(admin.address);
         await ct.transfer(user.address, am);
         await ct.connect(user).approve(mHub.address, am);
-        await mVault.deposit(j, am);
+        await mVault.connect(user).deposit(j, am);
       }
 
       //Expected exchange:
-      
+      const amountSource = 1.26346;
+      const vaultSource = 1;
+      const vaultDestination = 2;
+      const tkSource = await ethers.getContractAt("ERC20", tk[vaultSource].t);
+      const tkDestination = await ethers.getContractAt("ERC20", tk[vaultDestination].t);
+      const PRICE_SOURCE = await pFeed.getPrice(tkSource.address); 
+      const PRICE_DESTINATION = await pFeed.getPrice(tkDestination.address); 
+      const DECIMALS_SOURCE = await tkSource.decimals();
+      const DECIMALS_DESTINATION = await tkDestination.decimals();
+      let expected = (amountSource * (1 - FEE_MIN/10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
+      let result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
+      expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
+
+      //Set min fee in another plan the user doesnt have
+      await mVault.setSwapMuchoTokensFeeForPlan(2, FEE_MIN2);
+      expected = (amountSource * (1 - FEE_MIN/10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
+      result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
+      expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
+
+
+      //Set min fee in another plan the user have
+      await mVault.setSwapMuchoTokensFeeForPlan(3, FEE_MIN2);
+      expected = (amountSource * (1 - FEE_MIN2/10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
+      result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
+      expect(result).closeTo(toBN(expected, DECIMALS_DESTINATION), 2 , "Swap amount is not what expected");
+
+      //Set min fee in std
+      await mVault.setSwapMuchoTokensFee(FEE_MIN3);
+      expected = (amountSource * (1 - FEE_MIN3/10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
+      result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
+      expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
     });
 
 
