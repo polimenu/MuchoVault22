@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IMuchoHub.sol";
 import "../interfaces/IMuchoProtocol.sol";
 import "./MuchoRoles.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -57,15 +57,8 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         address _token,
         InvestmentPart[] memory _partitionList
     ) external onlyTraderOrAdmin checkPartitionList(_partitionList) {
-        console.log("    SOL - setDefaultInvestment");
         tokenDefaultInvestment[_token].defined = true;
-        console.log("    SOL - length", _partitionList.length);
-        /*tokenDefaultInvestment[_token] = InvestmentPartition({
-            parts: new InvestmentPart[](_partitionList.length),
-            defined: true
-        });*/
         for (uint256 i = 0; i < _partitionList.length; i = i.add(1)) {
-            console.log("    SOL - iteration", i);
             tokenDefaultInvestment[_token].parts.push(
                 InvestmentPart({
                     percentage: _partitionList[i].percentage,
