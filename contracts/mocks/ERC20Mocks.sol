@@ -15,6 +15,13 @@ contract USDC is ERC20{
         return 6;
     }
 
+    function mint(address _to, uint256 _amount) external{
+        _mint(_to, _amount);
+    }
+
+    function burn(address _from, uint256 _amount) external{
+        _burn(_from, _amount);
+    }
 }
 
 contract WETH is ERC20{
@@ -27,6 +34,14 @@ contract WETH is ERC20{
         return 18;
     }
 
+    function mint(address _to, uint256 _amount) external{
+        _mint(_to, _amount);
+    }
+
+    function burn(address _from, uint256 _amount) external{
+        _burn(_from, _amount);
+    }
+
 }
 
 contract WBTC is ERC20{
@@ -37,6 +52,14 @@ contract WBTC is ERC20{
 
     function decimals() public override pure returns(uint8){
         return 12;
+    }
+
+    function mint(address _to, uint256 _amount) external{
+        _mint(_to, _amount);
+    }
+
+    function burn(address _from, uint256 _amount) external{
+        _burn(_from, _amount);
     }
 
 }

@@ -9,8 +9,9 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IMuchoHub.sol";
 import "../interfaces/IMuchoProtocol.sol";
 import "./MuchoRoles.sol";
+import "hardhat/console.sol";
 
-contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard{
+contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     using SafeMath for uint256;
@@ -18,57 +19,100 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard{
 
     EnumerableSet.AddressSet protocolList;
     mapping(address => InvestmentPartition) tokenDefaultInvestment;
-    IMuchoProtocol defaultProtocol;
     uint256 public lastFullRefresh;
 
-
-    modifier checkPartitionList(InvestmentPart[] memory _partitionList){
+    modifier checkPartitionList(InvestmentPart[] memory _partitionList) {
         uint256 total = 0;
-        for(uint256 i = 0; i < _partitionList.length; i = i.add(1)){
-            require(protocolList.contains(_partitionList[i].protocol), "MuchoHub: Partition list contains not active protocol");
+        for (uint256 i = 0; i < _partitionList.length; i = i.add(1)) {
+            require(
+                protocolList.contains(_partitionList[i].protocol),
+                "MuchoHub: Partition list contains not active protocol"
+            );
             total = total.add(_partitionList[i].percentage);
         }
-        require(total == 10000, "MuchoHub: Partition list total is not 100% of investment");
+        require(
+            total == 10000,
+            "MuchoHub: Partition list total is not 100% of investment"
+        );
         _;
     }
 
-    modifier activeProtocol(address _protocol){
-        require(protocolList.contains(_protocol), "MuchoHub: Protocol not in the list");
+    modifier activeProtocol(address _protocol) {
+        require(
+            protocolList.contains(_protocol),
+            "MuchoHub: Protocol not in the list"
+        );
         _;
     }
 
-    function addProtocol(address _contract) onlyAdmin external{
+    function addProtocol(address _contract) external onlyAdmin {
         protocolList.add(_contract);
     }
-    function removeProtocol(address _contract) onlyAdmin external{
+
+    function removeProtocol(address _contract) external onlyAdmin {
         protocolList.remove(_contract);
     }
-    function setDefaultProtocol(IMuchoProtocol _newProtocol) onlyAdmin external{
-        defaultProtocol = _newProtocol;
-    }
 
-    function setDefaultInvestment(address _token, InvestmentPart[] memory _partitionList) 
-                                                            onlyTraderOrAdmin checkPartitionList(_partitionList) external{
+    function setDefaultInvestment(
+        address _token,
+        InvestmentPart[] memory _partitionList
+    ) external onlyTraderOrAdmin checkPartitionList(_partitionList) {
+        console.log("    SOL - setDefaultInvestment");
         tokenDefaultInvestment[_token].defined = true;
-        for(uint256 i = 0; i < _partitionList.length; i = i.add(1)){
-            tokenDefaultInvestment[_token].parts[i] = InvestmentPart({percentage: _partitionList[i].percentage, protocol: _partitionList[i].protocol});
+        console.log("    SOL - length", _partitionList.length);
+        /*tokenDefaultInvestment[_token] = InvestmentPartition({
+            parts: new InvestmentPart[](_partitionList.length),
+            defined: true
+        });*/
+        for (uint256 i = 0; i < _partitionList.length; i = i.add(1)) {
+            console.log("    SOL - iteration", i);
+            tokenDefaultInvestment[_token].parts.push(
+                InvestmentPart({
+                    percentage: _partitionList[i].percentage,
+                    protocol: _partitionList[i].protocol
+                })
+            );
         }
     }
 
-    function moveInvestment(address _token, uint256 _amount, address _protocolSource, address _protocolDestination) 
-                                onlyTraderOrAdmin nonReentrant
-                                activeProtocol(_protocolDestination) external{
+    function moveInvestment(
+        address _token,
+        uint256 _amount,
+        address _protocolSource,
+        address _protocolDestination
+    )
+        external
+        onlyTraderOrAdmin
+        nonReentrant
+        activeProtocol(_protocolDestination)
+    {
         IMuchoProtocol protSource = IMuchoProtocol(_protocolSource);
         protSource.withdrawAndSend(_token, _amount, _protocolDestination);
     }
 
-    function depositFrom(address _investor, address _token, uint256 _amount) onlyOwner nonReentrant external{
+    function depositFrom(
+        address _investor,
+        address _token,
+        uint256 _amount
+    ) external onlyOwner nonReentrant {
         IERC20 tk = IERC20(_token);
-        require(tk.allowance(_investor, address(this)) >= _amount, "MuchoHub: not enough allowance");
-        require(tokenDefaultInvestment[_token].defined, "MuchoHub: no protocol defined for the token");
-        
-        for(uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i = i.add(1)){
-            InvestmentPart memory part = tokenDefaultInvestment[_token].parts[i];
+        require(
+            tk.allowance(_investor, address(this)) >= _amount,
+            "MuchoHub: not enough allowance"
+        );
+        require(
+            tokenDefaultInvestment[_token].defined,
+            "MuchoHub: no protocol defined for the token"
+        );
+
+        for (
+            uint256 i = 0;
+            i < tokenDefaultInvestment[_token].parts.length;
+            i = i.add(1)
+        ) {
+            InvestmentPart memory part = tokenDefaultInvestment[_token].parts[
+                i
+            ];
             uint256 amountProtocol = _amount.mul(part.percentage).div(10000);
 
             //Send the amount and update investment in the protocol
@@ -78,74 +122,112 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard{
         }
     }
 
-    function withdrawFrom(address _investor, address _token, uint256 _amount) onlyOwner nonReentrant external{
+    function withdrawFrom(
+        address _investor,
+        address _token,
+        uint256 _amount
+    ) external onlyOwner nonReentrant {
         uint256 amountPending = _amount;
 
         //First, not invested volumes
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
-            amountPending = amountPending.sub(IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(_token, amountPending, _investor));
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            amountPending = amountPending.sub(
+                IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(
+                    _token,
+                    amountPending,
+                    _investor
+                )
+            );
 
-            if(amountPending == 0) //Already filled amount
+            if (amountPending == 0)
+                //Already filled amount
                 return;
         }
 
         //Secondly, invested volumes proportional to usd volume
         (uint256 totalUSD, uint256[] memory usdList) = getTotalUSDAndList();
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
-            uint256 amountToWithdraw = amountPending.mul(usdList[i]).div(totalUSD);
-            amountPending = amountPending.sub(IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(_token, amountToWithdraw, _investor));
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            uint256 amountToWithdraw = amountPending.mul(usdList[i]).div(
+                totalUSD
+            );
+            amountPending = amountPending.sub(
+                IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(
+                    _token,
+                    amountToWithdraw,
+                    _investor
+                )
+            );
 
-            if(amountPending == 0) //Already filled amount
+            if (amountPending == 0)
+                //Already filled amount
                 return;
         }
 
         revert("Could not fill needed amount");
     }
 
-
-    function refreshInvestment(address _protocol) onlyTraderOrAdmin activeProtocol(_protocol) public{
+    function refreshInvestment(
+        address _protocol
+    ) public onlyTraderOrAdmin activeProtocol(_protocol) {
         IMuchoProtocol(_protocol).refreshInvestment();
     }
-    function refreshAllInvestments() onlyTraderOrAdmin external{
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
+
+    function refreshAllInvestments() external onlyTraderOrAdmin {
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             refreshInvestment(protocolList.at(i));
         }
         lastFullRefresh = block.timestamp;
     }
 
-    function protocols() external view returns(address[] memory){
+    function protocols() external view returns (address[] memory) {
         address[] memory list = new address[](protocolList.length());
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             list[i] = protocolList.at(i);
         }
 
         return list;
     }
-    function getTotalNotInvested(address _token) external view returns(uint256){
+
+    function getTotalNotInvested(
+        address _token
+    ) external view returns (uint256) {
         uint256 total = 0;
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
-            total = total.add(IMuchoProtocol(protocolList.at(i)).getTotalNotInvested(_token));
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            total = total.add(
+                IMuchoProtocol(protocolList.at(i)).getTotalNotInvested(_token)
+            );
         }
         return total;
     }
-    function getTotalStaked(address _token) external view returns(uint256){
+
+    function getTotalStaked(address _token) external view returns (uint256) {
         uint256 total = 0;
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
-            total = total.add(IMuchoProtocol(protocolList.at(i)).getTotalStaked(_token));
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            total = total.add(
+                IMuchoProtocol(protocolList.at(i)).getTotalStaked(_token)
+            );
         }
         return total;
     }
-    function getTokenDefaults(address _token) external view returns(InvestmentPartition memory){
-        return tokenDefaultInvestment[_token];
+
+    function getTokenDefaults(
+        address _token
+    ) external view returns (InvestmentPart[] memory) {
+        require(tokenDefaultInvestment[_token].defined, "MuchoHub: Default investment not defined for token");
+        return tokenDefaultInvestment[_token].parts;
     }
-    function getTotalUSDAndList() public view returns(uint256, uint256[] memory){
+
+    function getTotalUSDAndList()
+        public
+        view
+        returns (uint256, uint256[] memory)
+    {
         uint256 total = 0;
         uint256[] memory usd = new uint256[](protocolList.length());
-        for(uint256 i = 0; i < protocolList.length(); i = i.add(1)){
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             usd[i] = IMuchoProtocol(protocolList.at(i)).getTotalUSD();
             total = total.add(usd[i]);
         }
         return (total, usd);
     }
-
 }

@@ -25,6 +25,19 @@ contract MuchoProtocolMock is IMuchoProtocol {
     uint256 lastUpdate;
     AprInfo aprInfo;
     IPriceFeed priceFeed;
+    uint256 notInvestedBP;
+    mapping(address => uint256) notInvestedAmount;
+
+    constructor(int256 _apr, uint256 _notInvestedBP, IPriceFeed _feed){
+        priceFeed = _feed;
+        apr = _apr;
+        notInvestedBP = _notInvestedBP;
+        lastUpdate = block.timestamp;
+    }
+
+    function setNotInvestedBP(uint256 _bp) external{
+        notInvestedBP = _bp;
+    }
 
     function setPriceFeed(IPriceFeed _feed) external {
         priceFeed = _feed;
@@ -40,13 +53,13 @@ contract MuchoProtocolMock is IMuchoProtocol {
         return "MuchoProtocolMock";
     }
     function protocolDescription() public pure returns(string memory){
-        return "Mock for testing use. Simulates APR by minting fake ERC20 tokens";
+        return "Mock for testing use. Simulates APR by minting or burning fake ERC20 tokens (needs to be owner of them)";
     }
 
     function cycleRewards() public {
         uint256 timeDiff = block.timestamp.sub(lastUpdate);
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
-            uint256 am = IERC20(tokenList.at(i)).balanceOf(address(this));
+            uint256 am = IERC20(tokenList.at(i)).balanceOf(address(this)).sub(notInvestedAmount[tokenList.at(i)]);
             uint256 newAm;
 
             //Mint or burn new tokens to simulate apr:
@@ -63,11 +76,14 @@ contract MuchoProtocolMock is IMuchoProtocol {
 
         }
         lastUpdate = block.timestamp;
-        aprInfo.updateApr(apr);
+        aprInfo.updateApr(apr * (10000 - int256(notInvestedBP)) / 10000);
     }
 
     function refreshInvestment() external {
-        cycleRewards();
+        //
+        for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            notInvestedAmount[tokenList.at(i)] = IERC20(tokenList.at(i)).balanceOf(address(this)).mul(notInvestedBP).div(10000);
+        }
     }
 
     function withdrawAndSend(
@@ -89,7 +105,7 @@ contract MuchoProtocolMock is IMuchoProtocol {
         address _target
     ) external returns (uint256) {
         IERC20 tk = IERC20(_token);
-        uint256 balance = tk.balanceOf(address(this));
+        uint256 balance = tk.balanceOf(address(this)).mul(notInvestedBP).div(10000);
         if (balance >= _amount) {
             tk.safeTransfer(_target, _amount);
             return _amount;
@@ -116,7 +132,8 @@ contract MuchoProtocolMock is IMuchoProtocol {
     }
 
     function getTotalNotInvested(address _token) public view returns (uint256) {
-        return 0;
+        IERC20 tk = IERC20(_token);
+        return tk.balanceOf(address(this)).mul(notInvestedBP).div(10000);
     }
 
     function getTotalStaked(address _token) external view returns (uint256) {
@@ -129,7 +146,7 @@ contract MuchoProtocolMock is IMuchoProtocol {
             totalUsd = totalUsd.add(
                 IERC20(tokenList.at(i)).balanceOf(address(this)).mul(
                     priceFeed.getPrice(tokenList.at(i))
-                )
+                ).div(1E30)
             );
         }
         return totalUsd;
