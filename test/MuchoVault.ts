@@ -632,32 +632,98 @@ describe("MuchoVaultTest", async function () {
       const vaultDestination = 2;
       const tkSource = await ethers.getContractAt("ERC20", tk[vaultSource].t);
       const tkDestination = await ethers.getContractAt("ERC20", tk[vaultDestination].t);
+      const mtkSource = await ethers.getContractAt("ERC20", tk[vaultSource].m);
+      const mtkDestination = await ethers.getContractAt("ERC20", tk[vaultDestination].m);
       const PRICE_SOURCE = await pFeed.getPrice(tkSource.address);
       const PRICE_DESTINATION = await pFeed.getPrice(tkDestination.address);
       const DECIMALS_SOURCE = await tkSource.decimals();
       const DECIMALS_DESTINATION = await tkDestination.decimals();
+      const bnAmountSource = toBN(amountSource, DECIMALS_SOURCE);
+
+      //Check if uses the NFT minimum fee:
       let expected = (amountSource * (1 - FEE_MIN / 10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
-      let result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
+      let result = await mVault.connect(user).getSwap(vaultSource, bnAmountSource, vaultDestination);
       expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
+
+      //console.log("Assert swap performs how expected");
+      {
+        const initialMSrc = await mtkSource.balanceOf(user.address);
+        const initialMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Initial mucho source", initialM0);
+        //console.log("Initial mucho dest", initialM1);
+        await mVault.connect(user).swap(vaultSource, bnAmountSource, vaultDestination, result, 0);
+
+        const finalMSrc = await mtkSource.balanceOf(user.address);
+        const finalMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Final mucho source", finalM0);
+        //console.log("Final mucho dest", finalM1);
+        expect(initialMSrc.sub(finalMSrc)).equal(bnAmountSource, "Final amount of muchotoken source is not what I expected");
+        expect(finalMDst.sub(initialMDst)).equal(result, "Final amount of muchotoken source is not what I expected");
+      }
+
 
       //Set min fee in another plan the user doesnt have
       await mVault.setSwapMuchoTokensFeeForPlan(2, FEE_MIN2);
       expected = (amountSource * (1 - FEE_MIN / 10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
       result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
       expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
+      //console.log("Assert swap performs how expected");
+      {
+        const initialMSrc = await mtkSource.balanceOf(user.address);
+        const initialMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Initial mucho source", initialM0);
+        //console.log("Initial mucho dest", initialM1);
+        await mVault.connect(user).swap(vaultSource, bnAmountSource, vaultDestination, result, 0);
 
+        const finalMSrc = await mtkSource.balanceOf(user.address);
+        const finalMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Final mucho source", finalM0);
+        //console.log("Final mucho dest", finalM1);
+        expect(initialMSrc.sub(finalMSrc)).equal(bnAmountSource, "Final amount of muchotoken source is not what I expected");
+        expect(finalMDst.sub(initialMDst)).equal(result, "Final amount of muchotoken source is not what I expected");
+      }
 
       //Set min fee in another plan the user have
       await mVault.setSwapMuchoTokensFeeForPlan(3, FEE_MIN2);
       expected = (amountSource * (1 - FEE_MIN2 / 10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
       result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
       expect(result).closeTo(toBN(expected, DECIMALS_DESTINATION), 2, "Swap amount is not what expected");
+      //console.log("Assert swap performs how expected");
+      {
+        const initialMSrc = await mtkSource.balanceOf(user.address);
+        const initialMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Initial mucho source", initialM0);
+        //console.log("Initial mucho dest", initialM1);
+        await mVault.connect(user).swap(vaultSource, bnAmountSource, vaultDestination, result, 0);
+
+        const finalMSrc = await mtkSource.balanceOf(user.address);
+        const finalMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Final mucho source", finalM0);
+        //console.log("Final mucho dest", finalM1);
+        expect(initialMSrc.sub(finalMSrc)).equal(bnAmountSource, "Final amount of muchotoken source is not what I expected");
+        expect(finalMDst.sub(initialMDst)).equal(result, "Final amount of muchotoken source is not what I expected");
+      }
 
       //Set min fee in std
       await mVault.setSwapMuchoTokensFee(FEE_MIN3);
       expected = (amountSource * (1 - FEE_MIN3 / 10000)) * fromBN(PRICE_SOURCE, 30) / fromBN(PRICE_DESTINATION, 30);
       result = await mVault.connect(user).getSwap(vaultSource, toBN(amountSource, DECIMALS_SOURCE), vaultDestination);
       expect(result).equal(toBN(expected, DECIMALS_DESTINATION), "Swap amount is not what expected");
+      //console.log("Assert swap performs how expected");
+      {
+        const initialMSrc = await mtkSource.balanceOf(user.address);
+        const initialMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Initial mucho source", initialM0);
+        //console.log("Initial mucho dest", initialM1);
+        await mVault.connect(user).swap(vaultSource, bnAmountSource, vaultDestination, result, 0);
+
+        const finalMSrc = await mtkSource.balanceOf(user.address);
+        const finalMDst = await mtkDestination.balanceOf(user.address);
+        //console.log("Final mucho source", finalM0);
+        //console.log("Final mucho dest", finalM1);
+        expect(initialMSrc.sub(finalMSrc)).equal(bnAmountSource, "Final amount of muchotoken source is not what I expected");
+        expect(finalMDst.sub(initialMDst)).equal(result, "Final amount of muchotoken source is not what I expected");
+      }
     });
 
 
