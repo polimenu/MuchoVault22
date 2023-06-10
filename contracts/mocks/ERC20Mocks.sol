@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract USDC is ERC20{
 
     constructor() ERC20("USDC", "USDC"){ 
-        _mint(msg.sender, 10000 * 10**6);
+        _mint(msg.sender, 100000 * 10**6);
     }
 
     function decimals() public override pure returns(uint8){
@@ -27,7 +27,7 @@ contract USDC is ERC20{
 contract WETH is ERC20{
 
     constructor() ERC20("WETH", "WETH"){ 
-        _mint(msg.sender, 100 * 10**18);
+        _mint(msg.sender, 1000 * 10**18);
     }
 
     function decimals() public override pure returns(uint8){
@@ -47,7 +47,7 @@ contract WETH is ERC20{
 contract WBTC is ERC20{
 
     constructor() ERC20("WBTC", "WBTC"){ 
-        _mint(msg.sender, 10 * 10**12);
+        _mint(msg.sender, 100 * 10**12);
     }
 
     function decimals() public override pure returns(uint8){
