@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../../interfaces/IMuchoHub.sol";
+import "../../interfaces/IPriceFeed.sol";
 import "hardhat/console.sol";
 
 contract MuchoHubMock is IMuchoHub{
@@ -18,6 +19,7 @@ contract MuchoHubMock is IMuchoHub{
     mapping(address => uint256) lastUpdate;
     mapping(address => uint256) tokenAmount;
     EnumerableSet.AddressSet tokenList;
+    IPriceFeed priceFeed;
 
     function setApr(int256 _apr) external{
         apr = _apr;
@@ -81,5 +83,39 @@ contract MuchoHubMock is IMuchoHub{
     }
     function getTotalStaked(address _token) external view returns(uint256){
         return tokenAmount[_token];
+    }
+
+    function getTotalUSD() external view returns(uint256){
+        uint256 total;
+        
+        for(uint i = 0; i < tokenList.length(); i++){
+            IERC20Metadata token = IERC20Metadata(tokenList.at(i));
+            uint8 decimalsAdjust = 30 + token.decimals() - 18;
+            uint256 usd = token.balanceOf(address(this)).mul(priceFeed.getPrice(address(token))).div(10**decimalsAdjust);
+            total = total.add(usd);
+        }
+
+        return total;
+    }
+
+    function getProtocols() external view returns(address[] memory){
+        address[] memory list = new address[](1);
+        list[0] = address(this);
+        return list;
+    }
+    
+    function getDefaultInvestment(address _token) external view returns(InvestmentPartition memory){
+        InvestmentPart memory part = InvestmentPart({protocol: address(this), percentage:10000});
+        InvestmentPart[] memory parts = new InvestmentPart[](1);
+        parts[0] = part;
+        return InvestmentPartition({defined: true, parts: parts});
+    }
+    
+    function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory){
+        InvestmentAmountPart[] memory parts = new InvestmentAmountPart[](1);
+        parts[0].protocol = address(this);
+        parts[0].amount = tokenAmount[_token];
+        InvestmentAmountPartition memory out = InvestmentAmountPartition({parts: parts});
+        return out;
     }
 }

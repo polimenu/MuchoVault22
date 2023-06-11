@@ -153,21 +153,57 @@ describe("MuchoHubTest", async function () {
       expect(def[0][0]).equal(defInput[0].protocol, "Default investment not properly set");
       expect(def[0][1]).equal(defInput[0].percentage, "Default investment not properly set");
 
-      await token.connect(users.user).approve(hub.address, AMOUNT);
+      //Save user balance and check HUB total staked is 0 before depositing
       const previousBalance = await token.connect(users.user).balanceOf(users.user.address);
-      let t = await hub.getTotalStaked(token.address);
+      expect(await hub.getTotalStaked(token.address)).equal(0, "HUB balance is not 0 before depositing");
+      expect(await hub.getTotalNotInvested(token.address)).equal(0, "HUB balance is not 0 before depositing");
+
+      //Make deposit
+      await token.connect(users.user).approve(hub.address, AMOUNT);
       await hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT);
 
-      t = await hub.getTotalStaked(token.address);
+      //Compare user balance and HUB total staked after depositing
       const newBalance = await token.connect(users.user).balanceOf(users.user.address);
       expect(newBalance).equal(previousBalance - AMOUNT, "Not expected balance in user after deposit");
-      t = await hub.getTotalStaked(token.address);
       expect(await hub.getTotalNotInvested(token.address)).equal(AMOUNT * notInvested[PROTOCOL_INDEX] / 10000, "Not invested amount fail");
-      t = await hub.getTotalStaked(token.address);
-      t = await protocols[PROTOCOL_INDEX].getTotalStaked(token.address);
       expect(await hub.getTotalStaked(token.address)).equal(AMOUNT, "Total invested amount fail");
 
-      t = await hub.getTotalStaked(token.address);
+      //Check total USD is correct
+      const [totalUSD, listUSD] = await hub.getTotalUSDAndList();
+      const price = fromBN(await priceFeed.getPrice(token.address), 30);
+      expect(totalUSD).equal(Math.round(AMOUNT * price), "Total USD does not work");
+    });
+
+    it("Should work when depositing with default protocol splitting in different protocols", async function () {
+      const { hub, users, protocols, tokens, aprs, notInvested, priceFeed } = await loadFixture(deployMuchoHub);
+      const token = tokens.usdc;
+      const AMOUNT = 1000 * 10 ** 6;
+      const PROTOCOL_INDEX = 0;
+
+      //Set default input with 100% in a protocol
+      const defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 10000 }];
+      await hub.setDefaultInvestment(token.address, defInput);
+      const def = await hub.getTokenDefaults(token.address);
+      expect(def.length).equal(defInput.length, "Default investment not properly set");
+      expect(def[0][0]).equal(defInput[0].protocol, "Default investment not properly set");
+      expect(def[0][1]).equal(defInput[0].percentage, "Default investment not properly set");
+
+      //Save user balance and check HUB total staked is 0 before depositing
+      const previousBalance = await token.connect(users.user).balanceOf(users.user.address);
+      expect(await hub.getTotalStaked(token.address)).equal(0, "HUB balance is not 0 before depositing");
+      expect(await hub.getTotalNotInvested(token.address)).equal(0, "HUB balance is not 0 before depositing");
+
+      //Make deposit
+      await token.connect(users.user).approve(hub.address, AMOUNT);
+      await hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT);
+
+      //Compare user balance and HUB total staked after depositing
+      const newBalance = await token.connect(users.user).balanceOf(users.user.address);
+      expect(newBalance).equal(previousBalance - AMOUNT, "Not expected balance in user after deposit");
+      expect(await hub.getTotalNotInvested(token.address)).equal(AMOUNT * notInvested[PROTOCOL_INDEX] / 10000, "Not invested amount fail");
+      expect(await hub.getTotalStaked(token.address)).equal(AMOUNT, "Total invested amount fail");
+
+      //Check total USD is correct
       const [totalUSD, listUSD] = await hub.getTotalUSDAndList();
       const price = fromBN(await priceFeed.getPrice(token.address), 30);
       expect(totalUSD).equal(Math.round(AMOUNT * price), "Total USD does not work");

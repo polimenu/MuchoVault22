@@ -10,3 +10,14 @@ struct InvestmentPartition{
     InvestmentPart[] parts;
     bool defined;
 }
+
+
+
+struct InvestmentAmountPart{
+    address protocol;
+    uint256 amount;
+}
+
+struct InvestmentAmountPartition{
+    InvestmentAmountPart[] parts;
+}

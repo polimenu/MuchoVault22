@@ -41,4 +41,8 @@ interface IMuchoHub{
 
     function getTotalNotInvested(address _token) external view returns(uint256);
     function getTotalStaked(address _token) external view returns(uint256);
+    function getTotalUSD() external view returns(uint256);
+    function getProtocols() external view returns(address[] memory);
+    function getDefaultInvestment(address _token) external view returns(InvestmentPartition memory);
+    function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory);
 }

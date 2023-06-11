@@ -211,7 +211,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     }
 
     function getTotalUSDAndList()
-        public
+        internal
         view
         returns (uint256, uint256[] memory)
     {
@@ -222,5 +222,32 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             total = total.add(usd[i]);
         }
         return (total, usd);
+    }
+
+    function getTotalUSD() external view returns(uint256){
+        (uint256 total, ) = getTotalUSDAndList();
+        return total;
+    }
+
+    function getProtocols() external view returns(address[] memory){
+        address[] memory list = new address[](protocolList.length());
+        for(uint16 i = 0; i < protocolList.length(); i++){
+            list[i] = protocolList.at(i);
+        }
+        return list;
+    }
+    
+    function getDefaultInvestment(address _token) external view returns(InvestmentPartition memory){
+        return tokenDefaultInvestment[_token];
+    }
+    
+    function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory){
+        InvestmentAmountPart[] memory parts = new InvestmentAmountPart[](protocolList.length());
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            parts[i].protocol = protocolList.at(i);
+            parts[i].amount = IMuchoProtocol(protocolList.at(i)).getTotalStaked(_token);
+        }
+        InvestmentAmountPartition memory out = InvestmentAmountPartition({parts: parts});
+        return out;
     }
 }
