@@ -104,11 +104,11 @@ contract MuchoHubMock is IMuchoHub{
         return list;
     }
     
-    function getDefaultInvestment(address _token) external view returns(InvestmentPartition memory){
+    function getTokenDefaults(address _token) external view returns(InvestmentPart[] memory){
         InvestmentPart memory part = InvestmentPart({protocol: address(this), percentage:10000});
         InvestmentPart[] memory parts = new InvestmentPart[](1);
         parts[0] = part;
-        return InvestmentPartition({defined: true, parts: parts});
+        return parts;
     }
     
     function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory){

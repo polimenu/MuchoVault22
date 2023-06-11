@@ -237,10 +237,6 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         return list;
     }
     
-    function getDefaultInvestment(address _token) external view returns(InvestmentPartition memory){
-        return tokenDefaultInvestment[_token];
-    }
-    
     function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory){
         InvestmentAmountPart[] memory parts = new InvestmentAmountPart[](protocolList.length());
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
