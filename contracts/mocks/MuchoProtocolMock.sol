@@ -143,10 +143,11 @@ contract MuchoProtocolMock is IMuchoProtocol {
     function getTotalUSD() external view returns (uint256) {
         uint256 totalUsd = 0;
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            uint8 decimalsAdjust = 30 - 18 + IERC20Metadata(tokenList.at(i)).decimals();
             totalUsd = totalUsd.add(
                 IERC20(tokenList.at(i)).balanceOf(address(this)).mul(
                     priceFeed.getPrice(tokenList.at(i))
-                ).div(1E30)
+                ).div(10**decimalsAdjust)
             );
         }
         return totalUsd;

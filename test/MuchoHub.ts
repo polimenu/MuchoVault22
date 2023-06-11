@@ -12,6 +12,7 @@ import { InvestmentPartStruct } from "../typechain-types/contracts/MuchoHub";
 describe("MuchoHubTest", async function () {
 
   const toBN = (num: Number, dec: Number): eth.BigNumber => {
+    BigNumber.config({EXPONENTIAL_AT: 100});
     return eth.BigNumber.from(new BigNumber(num.toString() + "E" + dec.toString()).decimalPlaces(0).toString());
   }
 
@@ -141,8 +142,10 @@ describe("MuchoHubTest", async function () {
 
     it("Should work when depositing with default protocol with 100% share", async function () {
       const { hub, users, protocols, tokens, aprs, notInvested, priceFeed } = await loadFixture(deployMuchoHub);
-      const token = tokens.usdc;
-      const AMOUNT = 1000 * 10 ** 6;
+      const token = tokens.weth;
+      const AMOUNT = 3.1453;
+      const DECIMALS = await token.decimals();
+      const bnAmount = toBN(AMOUNT, DECIMALS);
       const PROTOCOL_INDEX = 0;
 
       //Set default input with 100% in a protocol
@@ -154,39 +157,60 @@ describe("MuchoHubTest", async function () {
       expect(def[0][1]).equal(defInput[0].percentage, "Default investment not properly set");
 
       //Save user balance and check HUB total staked is 0 before depositing
-      const previousBalance = await token.connect(users.user).balanceOf(users.user.address);
+      const previousBalance:eth.BigNumber = await token.connect(users.user).balanceOf(users.user.address);
       expect(await hub.getTotalStaked(token.address)).equal(0, "HUB balance is not 0 before depositing");
       expect(await hub.getTotalNotInvested(token.address)).equal(0, "HUB balance is not 0 before depositing");
 
       //Make deposit
-      await token.connect(users.user).approve(hub.address, AMOUNT);
-      await hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT);
+      await token.connect(users.user).approve(hub.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
 
       //Compare user balance and HUB total staked after depositing
       const newBalance = await token.connect(users.user).balanceOf(users.user.address);
-      expect(newBalance).equal(previousBalance - AMOUNT, "Not expected balance in user after deposit");
-      expect(await hub.getTotalNotInvested(token.address)).equal(AMOUNT * notInvested[PROTOCOL_INDEX] / 10000, "Not invested amount fail");
-      expect(await hub.getTotalStaked(token.address)).equal(AMOUNT, "Total invested amount fail");
+      expect(newBalance).equal(previousBalance.sub(bnAmount), "Not expected balance in user after deposit");
+      expect(await hub.getTotalNotInvested(token.address)).equal(bnAmount.mul(notInvested[PROTOCOL_INDEX]).div(10000), "Not invested amount fail");
+      expect(await hub.getTotalStaked(token.address)).equal(bnAmount, "Total invested amount fail");
 
       //Check total USD is correct
-      const [totalUSD, listUSD] = await hub.getTotalUSDAndList();
+      const totalUSD = await hub.getTotalUSD();
       const price = fromBN(await priceFeed.getPrice(token.address), 30);
-      expect(totalUSD).equal(Math.round(AMOUNT * price), "Total USD does not work");
+      expect(totalUSD).equal(bnAmount.mul(price).mul(10**(18-DECIMALS)), "Total USD does not work");
+
+      //Check current investment is correct
+      let EXPECTED_INV:any = {};
+      EXPECTED_INV[protocols[PROTOCOL_INDEX].address] = bnAmount;
+      const inv = await hub.getCurrentInvestment(token.address);
+      expect(inv.parts.length).equal(3, "Current investment has different number of parts");
+      for(var i = 0; i < inv.parts.length; i++){
+
+        if(!EXPECTED_INV[inv.parts[i].protocol]){
+          expect(inv.parts[i].amount).equal(0, `Not expected investment in protocol ${inv.parts[i].protocol}`);
+        }
+        else{
+          expect(inv.parts[i].amount).equal(EXPECTED_INV[inv.parts[i].protocol], `Not expected investment amount in protocol ${inv.parts[i].protocol}`);
+        }
+
+      }
     });
 
     it("Should work when depositing with default protocol splitting in different protocols", async function () {
       const { hub, users, protocols, tokens, aprs, notInvested, priceFeed } = await loadFixture(deployMuchoHub);
-      const token = tokens.usdc;
-      const AMOUNT = 1000 * 10 ** 6;
-      const PROTOCOL_INDEX = 0;
+      const token = tokens.wbtc;
+      const AMOUNT = 1.31453;
+      const DECIMALS = await token.decimals();
+      const bnAmount = toBN(AMOUNT, DECIMALS);
 
       //Set default input with 100% in a protocol
-      const defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 10000 }];
+      const defInput = [{ protocol: protocols[0].address, percentage: 3300 },
+                        { protocol: protocols[1].address, percentage: 2000 },
+                        { protocol: protocols[2].address, percentage: 4700 }];
       await hub.setDefaultInvestment(token.address, defInput);
       const def = await hub.getTokenDefaults(token.address);
       expect(def.length).equal(defInput.length, "Default investment not properly set");
-      expect(def[0][0]).equal(defInput[0].protocol, "Default investment not properly set");
-      expect(def[0][1]).equal(defInput[0].percentage, "Default investment not properly set");
+      for(var i = 0; i < def.length; i++){
+        expect(def[i][0]).equal(defInput[i].protocol, "Default investment not properly set");
+        expect(def[i][1]).equal(defInput[i].percentage, "Default investment not properly set");
+      }
 
       //Save user balance and check HUB total staked is 0 before depositing
       const previousBalance = await token.connect(users.user).balanceOf(users.user.address);
@@ -194,21 +218,51 @@ describe("MuchoHubTest", async function () {
       expect(await hub.getTotalNotInvested(token.address)).equal(0, "HUB balance is not 0 before depositing");
 
       //Make deposit
-      await token.connect(users.user).approve(hub.address, AMOUNT);
-      await hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT);
+      await token.connect(users.user).approve(hub.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
 
       //Compare user balance and HUB total staked after depositing
       const newBalance = await token.connect(users.user).balanceOf(users.user.address);
-      expect(newBalance).equal(previousBalance - AMOUNT, "Not expected balance in user after deposit");
-      expect(await hub.getTotalNotInvested(token.address)).equal(AMOUNT * notInvested[PROTOCOL_INDEX] / 10000, "Not invested amount fail");
-      expect(await hub.getTotalStaked(token.address)).equal(AMOUNT, "Total invested amount fail");
+      expect(newBalance).equal(previousBalance.sub(bnAmount), "Not expected balance in user after deposit");
+      let expectedNotInvested = eth.BigNumber.from(0);
+      for(var i = 0; i < notInvested.length; i ++){
+        expectedNotInvested = expectedNotInvested.add(bnAmount.mul(defInput[i].percentage).mul(notInvested[i]).div(100000000));
+      }
+      expect(await hub.getTotalNotInvested(token.address)).equal(expectedNotInvested, "Not invested amount fail");
+      expect(await hub.getTotalStaked(token.address)).equal(bnAmount, "Total invested amount fail");
 
       //Check total USD is correct
-      const [totalUSD, listUSD] = await hub.getTotalUSDAndList();
+      const totalUSD = await hub.getTotalUSD();
       const price = fromBN(await priceFeed.getPrice(token.address), 30);
-      expect(totalUSD).equal(Math.round(AMOUNT * price), "Total USD does not work");
+      expect(totalUSD).equal(bnAmount.mul(price).mul(10**(18-DECIMALS)), "Total USD does not work");
+
+      //Check current investment is correct
+      let EXPECTED_INV:any = {};
+      for(var i = 0; i < defInput.length; i++){
+        EXPECTED_INV[defInput[i].protocol] = bnAmount.mul(defInput[i].percentage).div(10000);
+      }
+      const inv = await hub.getCurrentInvestment(token.address);
+      expect(inv.parts.length).equal(3, "Current investment has different number of parts");
+      for(var i = 0; i < inv.parts.length; i++){
+        
+        if(!EXPECTED_INV[inv.parts[i].protocol]){
+          expect(inv.parts[i].amount).equal(0, `Not expected investment in protocol ${inv.parts[i].protocol}`);
+        }
+        else{
+          expect(inv.parts[i].amount).equal(EXPECTED_INV[inv.parts[i].protocol], `Not expected investment amount in protocol ${inv.parts[i].protocol}`);
+        }
+
+      }
     });
 
+  });
+
+  describe("APR and deposit/withdraw", async () => {
+
+    it("Should properly earn APR in different protocols", async () => {
+
+    });
+    
   });
 
 });

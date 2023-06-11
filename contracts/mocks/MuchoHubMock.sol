@@ -97,12 +97,6 @@ contract MuchoHubMock is IMuchoHub{
 
         return total;
     }
-
-    function getProtocols() external view returns(address[] memory){
-        address[] memory list = new address[](1);
-        list[0] = address(this);
-        return list;
-    }
     
     function getTokenDefaults(address _token) external view returns(InvestmentPart[] memory){
         InvestmentPart memory part = InvestmentPart({protocol: address(this), percentage:10000});
@@ -116,6 +110,12 @@ contract MuchoHubMock is IMuchoHub{
         parts[0].protocol = address(this);
         parts[0].amount = tokenAmount[_token];
         InvestmentAmountPartition memory out = InvestmentAmountPartition({parts: parts});
+        return out;
+    }
+
+    function protocols() external view returns(address[] memory){
+        address[] memory out = new address[](1);
+        out[0] = address(this);
         return out;
     }
 }
