@@ -11,7 +11,7 @@ import "../../interfaces/IPriceFeed.sol";
 import "../../interfaces/IMuchoToken.sol";
 import "../../lib/AprInfo.sol";
 import "../MuchoRoles.sol";
-
+//import "hardhat/console.sol";
 //import "../../lib/UintSafe.sol";
 
 contract MuchoProtocolMock is IMuchoProtocol {
@@ -58,24 +58,33 @@ contract MuchoProtocolMock is IMuchoProtocol {
 
     function cycleRewards() public {
         uint256 timeDiff = block.timestamp.sub(lastUpdate);
+        //console.log("    SOL MuchoProtocolMock - CYCLING REWARDS", timeDiff);
+        //console.log("    SOL MuchoProtocolMock - timeDiff", timeDiff);
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            //console.log("    SOL MuchoProtocolMock --------------------------------- i", i);
             uint256 am = IERC20(tokenList.at(i)).balanceOf(address(this)).sub(notInvestedAmount[tokenList.at(i)]);
             uint256 newAm;
+            //console.log("    SOL MuchoProtocolMock - am", am);
 
             //Mint or burn new tokens to simulate apr:
-            if(apr == 0)
+            if(apr == 0){
+                //console.log("    SOL MuchoProtocolMock - apr zero");
                 newAm = am;
+            }
             else if(apr > 0){
+                //console.log("    SOL MuchoProtocolMock - POSITIVE apr", uint256(apr));
                 newAm = am.add(am.mul(uint256(apr)).mul(timeDiff).div(365 days).div(10000));
                 IMuchoToken(tokenList.at(i)).mint(address(this), newAm.sub(am));
             }
             else{
-                newAm = am.sub(am.mul(uint256(apr)).mul(timeDiff).div(365 days).div(10000));
+                //console.log("    SOL MuchoProtocolMock - NEGATIVE apr", uint256(-apr));
+                newAm = am.sub(am.mul(uint256(-apr)).mul(timeDiff).div(365 days).div(10000));
                 IMuchoToken(tokenList.at(i)).burn(address(this), am.sub(newAm));
             }
 
         }
         lastUpdate = block.timestamp;
+        //console.log("    SOL MuchoProtocolMock - Updating APR");
         aprInfo.updateApr(apr * (10000 - int256(notInvestedBP)) / 10000);
     }
 
@@ -106,13 +115,11 @@ contract MuchoProtocolMock is IMuchoProtocol {
     ) external returns (uint256) {
         IERC20 tk = IERC20(_token);
         uint256 balance = tk.balanceOf(address(this)).mul(notInvestedBP).div(10000);
-        if (balance >= _amount) {
-            tk.safeTransfer(_target, _amount);
-            return _amount;
-        } else {
-            tk.safeTransfer(_target, balance);
-            return balance;
-        }
+        uint256 amountToTransfer = (balance >= _amount) ? _amount : balance;
+
+        notInvestedAmount[_token] = notInvestedAmount[_token].sub(amountToTransfer);
+        tk.safeTransfer(_target, amountToTransfer);
+        return amountToTransfer;
     }
 
     function notifyDeposit(address _token, uint256 _amount) external {
@@ -132,11 +139,14 @@ contract MuchoProtocolMock is IMuchoProtocol {
     }
 
     function getTotalNotInvested(address _token) public view returns (uint256) {
-        IERC20 tk = IERC20(_token);
-        return tk.balanceOf(address(this)).mul(notInvestedBP).div(10000);
+        return notInvestedAmount[_token];
     }
 
-    function getTotalStaked(address _token) external view returns (uint256) {
+    function getTotalInvested(address _token) public view returns (uint256) {
+        return getTotalStaked(_token).sub(notInvestedAmount[_token]);
+    }
+
+    function getTotalStaked(address _token) public view returns (uint256) {
         return IERC20(_token).balanceOf(address(this));
     }
 

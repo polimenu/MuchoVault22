@@ -18,7 +18,7 @@ import "../../lib/AprInfo.sol";
 //import "./IMuchoGMXController.sol";
 //import "../../lib/UintSafe.sol";
 
-contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
+contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     using SafeMath for uint256;
     using SafeMath for uint64;
@@ -358,10 +358,13 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     function getLastPeriodsApr(address _token) external view returns(int256[30] memory){
         return tokenAprInfo[_token].apr;
     }
+    function getTotalInvested(address _token) public view returns(uint256){
+        return getTotalStaked(_token).sub(getTotalNotInvested(_token));
+    }
     function getTotalNotInvested(address _token) public view returns(uint256){
         return IERC20(_token).balanceOf(address(this));
     }
-    function getTotalStaked(address _token) external view returns(uint256){
+    function getTotalStaked(address _token) public view returns(uint256){
         return tokenAmount[_token];
     }
 

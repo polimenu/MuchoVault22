@@ -67,8 +67,11 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     function getTotalNotInvested(address _token) public view returns(uint256){
         return IERC20(_token).balanceOf(address(this));
     }
-    function getTotalStaked(address _token) external view returns(uint256){
+    function getTotalStaked(address _token) public view returns(uint256){
         return getTotalNotInvested(_token);
+    }
+    function getTotalInvested(address _token) public view returns(uint256){
+        return getTotalStaked(_token).sub(getTotalNotInvested(_token));
     }
     function getTotalUSD() external view returns(uint256){
         uint256 totalUsd = 0;

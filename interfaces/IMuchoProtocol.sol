@@ -42,6 +42,7 @@ interface IMuchoProtocol{
 
     function getLastPeriodsApr(address _token) external view returns(int256[30] memory);
     function getTotalNotInvested(address _token) external view returns(uint256);
+    function getTotalInvested(address _token) external view returns(uint256);
     function getTotalStaked(address _token) external view returns(uint256);
     function getTotalUSD() external view returns(uint256);
 }
