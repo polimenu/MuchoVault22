@@ -12,7 +12,7 @@ import "../interfaces/IPriceFeed.sol";
 import "./MuchoRoles.sol";
 import "../lib/UintSafe.sol";
 import "../lib/AprInfo.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
@@ -276,7 +276,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
     //Withdraws from a vault. The user should have muschoTokens that will be burnt
     function withdraw(uint8 _vaultId, uint256 _share) external validVault(_vaultId) nonReentrant {
-        console.log("    SOL - WITHDRAW!!!");
+        //console.log("    SOL - WITHDRAW!!!");
 
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         IERC20 dToken = vaultInfo[_vaultId].depositToken;

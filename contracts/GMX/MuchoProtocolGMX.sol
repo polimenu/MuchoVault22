@@ -83,10 +83,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     IMuchoRewardRouter muchoRewardRouter = IMuchoRewardRouter(0x0000000000000000000000000000000000000000);
     function updateMuchoRewardRouter(address _newRouter) external onlyOwner { muchoRewardRouter = IMuchoRewardRouter(_newRouter); }
 
-    //IMuchoGMXController controller has the logic of the investment we need to make/unmake in GLP:
-    //IMuchoGMXController muchoInvestmentController = IMuchoGMXController(0x0000000000000000000000000000000000000000);
-    //function updateMuchoGMXController(address _new) external onlyOwner { muchoInvestmentController = IMuchoGMXController(_new); }
-
     RewardSplit rewardSplit;
     IMuchoProtocol compoundProtocol;
     mapping(address => AprInfo) tokenAprInfo;
@@ -144,7 +140,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
         // Check total weight makes sense
         uint256 diff = (totalWeight > 10000) ? (totalWeight - 10000) : (10000 - totalWeight);
-        require(diff < 100, "MuchoVaultV2.updateDesiredWeightsFromGLP: Total weight far away from 1");
+        require(diff < 100, "MuchoProtocolGmx.updateDesiredWeightsFromGLP: Total weight far away from 1");
 
         //Update date
         lastWeightUpdate = block.timestamp;
@@ -170,8 +166,8 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     //Sets manually the desired weight for a vault
     function setWeight(address _token, uint256 _percent) external onlyOwner {
-        require(_percent < 7000 && _percent > 0, "MuchoInvestmentController.setWeight: not in range");
-        require(manualModeWeights, "MuchoInvestmentController.setWeight: automatic mode");
+        require(_percent < 7000 && _percent > 0, "MuchoProtocolGmx.setWeight: not in range");
+        require(manualModeWeights, "MuchoProtocolGmx.setWeight: automatic mode");
         glpWeight[_token] = _percent;
     }
 
@@ -344,7 +340,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     }
 
     function setRewardPercentages(RewardSplit calldata _split) onlyTraderOrAdmin external{
-        require(_split.NftPercentage.add(_split.ownerPercentage) <= 10000, "NTF and owner fee are more than 100%");
+        require(_split.NftPercentage.add(_split.ownerPercentage) <= 10000, "MuchoProtocolGmx: NTF and owner fee are more than 100%");
         rewardSplit = RewardSplit({NftPercentage: _split.NftPercentage, ownerPercentage: _split.ownerPercentage});
     }
 

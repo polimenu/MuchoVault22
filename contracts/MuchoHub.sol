@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IMuchoHub.sol";
 import "../interfaces/IMuchoProtocol.sol";
 import "./MuchoRoles.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -127,12 +127,8 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         require(_amount < getTotalStaked(_token), "Cannot withdraw more than total staked");
         uint256 amountPending = _amount;
 
-        console.log("    SOL MuchoHub - WITHDRAW");
-
-        console.log(
-            "    SOL MuchoHub - Start with not invested, pending: ",
-            amountPending
-        );
+        /*console.log("    SOL MuchoHub - WITHDRAW");
+        console.log("    SOL MuchoHub - Start with not invested, pending: ", amountPending);*/
 
         //First, not invested volumes
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
@@ -140,29 +136,29 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
                 IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(_token, amountPending, _investor)
             );
 
-            console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
+            //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
             if (amountPending == 0)
                 //Already filled amount
                 return;
         }
 
-        console.log("    SOL MuchoHub - Continue with invested, pending: ", amountPending);
+        //console.log("    SOL MuchoHub - Continue with invested, pending: ", amountPending);
 
         //Secondly, invested volumes proportional to usd volume
         (uint256 totalInvested, uint256[] memory amountList) = getTotalInvestedAndList(_token);
         uint256 amountTotalWithdrawFromInvested = amountPending;
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
-            console.log("    SOL MuchoHub - iteration invested ", amountList[i], totalInvested);
+            //console.log("    SOL MuchoHub - iteration invested ", amountList[i], totalInvested);
             uint256 amountProtocol = amountTotalWithdrawFromInvested.mul(amountList[i]).div(totalInvested);
             uint256 amountToWithdraw = (amountProtocol > amountPending) ? amountPending : amountProtocol;
-            console.log("    SOL MuchoHub - amount to withdraw ", amountToWithdraw);
+            //console.log("    SOL MuchoHub - amount to withdraw ", amountToWithdraw);
 
             amountPending = amountPending.sub(amountToWithdraw);
 
             IMuchoProtocol(protocolList.at(i)).withdrawAndSend(_token, amountToWithdraw, _investor);
 
-            console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
+            //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
             if (amountPending == 0)
                 //Already filled amount
@@ -172,19 +168,15 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         //IF there is a rest (from dividing rounding), fill it easy
         (totalInvested, amountList) = getTotalInvestedAndList(_token);
         if(amountPending < totalInvested){
-        console.log("    SOL MuchoHub - Continue with invested RESTO, pending: ", amountPending);
+        //console.log("    SOL MuchoHub - Continue with invested RESTO, pending: ", amountPending);
             for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
-                console.log("    SOL MuchoHub - iteration invested RESTO ", amountList[i], totalInvested);
+                //console.log("    SOL MuchoHub - iteration invested RESTO ", amountList[i], totalInvested);
                 
                 uint256 amountToWithdraw = (amountList[i] > amountPending) ? amountPending : amountList[i];
-
-                console.log("    SOL MuchoHub - amount to withdraw ", amountToWithdraw);
-
+                //console.log("    SOL MuchoHub - amount to withdraw ", amountToWithdraw);
                 amountPending = amountPending.sub(amountToWithdraw);
-
                 IMuchoProtocol(protocolList.at(i)).withdrawAndSend(_token, amountToWithdraw, _investor);
-
-                console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
+                //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
                 if (amountPending == 0)
                     //Already filled amount

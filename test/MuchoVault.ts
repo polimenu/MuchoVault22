@@ -260,10 +260,10 @@ describe("MuchoVaultTest", async function () {
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
       const EARN_PER_SEC = DEPOSITED * (APR / 100) / ONE_YEAR_IN_SECS;
 
-      console.log("APR", APR);
+      /*console.log("APR", APR);
       console.log("DEPOSITED", DEPOSITED);
       console.log("EARN_PER_SEC", EARN_PER_SEC);
-      console.log("ONE_YEAR_IN_SECS", ONE_YEAR_IN_SECS);
+      console.log("ONE_YEAR_IN_SECS", ONE_YEAR_IN_SECS);*/
 
       //console.log("timeBefore", timeBefore);
       await time.increaseTo(timeDeposited + ONE_YEAR_IN_SECS);
@@ -272,13 +272,13 @@ describe("MuchoVaultTest", async function () {
       let timeAfter = await time.latest();
       let lapse = timeAfter - timeDeposited;
 
-      console.log("timeDeposited", timeDeposited);
+      /*console.log("timeDeposited", timeDeposited);
       console.log("timeAfter", timeAfter);
-      console.log("lapse", lapse);
+      console.log("lapse", lapse);*/
 
       let staked = await mVault.connect(user).vaultTotalStaked(0);
       const EXPECTED = DEPOSITED + EARN_PER_SEC * lapse;
-      console.log("EXPECTED", EXPECTED);
+      //console.log("EXPECTED", EXPECTED);
       expect(staked).closeTo(Math.round(EXPECTED), Math.round(EXPECTED / 10000000), `Staked value after APR is not correct`);
       expect(await mVault.connect(user).vaultStakedFromDeposits(0)).to.equal(FROMDEP);
     });

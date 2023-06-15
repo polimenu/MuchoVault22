@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../../interfaces/IMuchoHub.sol";
 import "../../interfaces/IPriceFeed.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract MuchoHubMock is IMuchoHub{
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -38,7 +38,7 @@ contract MuchoHubMock is IMuchoHub{
     function withdrawFrom(address _investor, address _token, uint256 _amount) external{
         tokenAmount[_token] = tokenAmount[_token].sub(_amount);
         if(lastUpdate[_token] == 0){
-            console.log("    SOL - Updating last update", block.timestamp);
+            //console.log("    SOL - Updating last update", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
         IERC20(_token).safeTransfer(_investor, _amount);

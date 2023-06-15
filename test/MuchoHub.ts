@@ -119,26 +119,26 @@ describe("MuchoHubTest", async function () {
       const token = tokens.usdc;
       const PROTOCOL_INDEX = 0;
 
-      console.log("Investment 99%");
+      //console.log("Investment 99%");
       let defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 9900 }];
       await expect(hub.setDefaultInvestment(token.address, defInput)).revertedWith("MuchoHub: Partition list total is not 100% of investment");
 
-      console.log("Investment 33 + 66.99%");
+      //console.log("Investment 33 + 66.99%");
       defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 3300 },
       { protocol: protocols[PROTOCOL_INDEX].address, percentage: 6699 }];
       await expect(hub.setDefaultInvestment(token.address, defInput)).revertedWith("MuchoHub: Partition list total is not 100% of investment");
 
-      console.log("Investment 100%");
+      //console.log("Investment 100%");
       defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 10000 }];
       await hub.setDefaultInvestment(token.address, defInput);
 
-      console.log("Investment 33.33 + 33.33 + 33.34%");
+      //console.log("Investment 33.33 + 33.33 + 33.34%");
       defInput = [{ protocol: protocols[PROTOCOL_INDEX].address, percentage: 3333 },
       { protocol: protocols[PROTOCOL_INDEX].address, percentage: 3333 },
       { protocol: protocols[PROTOCOL_INDEX].address, percentage: 3334 },];
       await hub.setDefaultInvestment(token.address, defInput);
 
-      console.log("Investment Done");
+      //console.log("Investment Done");
     });
 
     it("Should work when depositing with default protocol with 100% share", async function () {
@@ -449,8 +449,46 @@ describe("MuchoHubTest", async function () {
   });
 
 
-  describe("Roles", () => {
-    it("Should only work with proper roles", () => {
+  describe("Roles", async () => {
+    it("Should only work with proper roles", async () => {
+      const { hub, users, protocols, tokens, aprs, notInvested, priceFeed } = await loadFixture(deployMuchoHub);
+
+      //ADMIN functions
+      const ONLY_ADMIN_REASON = "MuchoRoles: Only for admin";
+      const FAKE_ADDRESS = hub.address;
+      await expect(hub.connect(users.user).addProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(hub.connect(users.owner).addProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(hub.connect(users.trader).addProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+
+      await expect(hub.connect(users.user).removeProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(hub.connect(users.owner).removeProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+      await expect(hub.connect(users.trader).removeProtocol(FAKE_ADDRESS)).revertedWith(ONLY_ADMIN_REASON);
+
+
+      //TRADER OR ADMIN
+      const ONLY_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for trader or admin";
+      await expect(hub.connect(users.user).setDefaultInvestment(FAKE_ADDRESS, [])).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(hub.connect(users.owner).setDefaultInvestment(FAKE_ADDRESS, [])).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+
+      await expect(hub.connect(users.user).moveInvestment(FAKE_ADDRESS, 1E6, FAKE_ADDRESS, FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(hub.connect(users.owner).moveInvestment(FAKE_ADDRESS, 1E6, FAKE_ADDRESS, FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+
+      await expect(hub.connect(users.user).refreshInvestment(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(hub.connect(users.owner).refreshInvestment(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+
+      await expect(hub.connect(users.user).refreshAllInvestments()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+      await expect(hub.connect(users.owner).refreshAllInvestments()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
+
+
+      //OWNER (contract owner)
+      const ONLY_OWNER_REASON = "Ownable: caller is not the owner";
+      await expect(hub.connect(users.user).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.trader).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.admin).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+
+      await expect(hub.connect(users.user).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.trader).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.admin).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
 
     });
   });
