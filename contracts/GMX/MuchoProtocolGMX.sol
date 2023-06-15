@@ -81,7 +81,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     //MuchoRewardRouter Interaction for NFT Holders
     IMuchoRewardRouter muchoRewardRouter = IMuchoRewardRouter(0x0000000000000000000000000000000000000000);
-    function updateMuchoRewardRouter(address _newRouter) external onlyOwner { muchoRewardRouter = IMuchoRewardRouter(_newRouter); }
+    function setMuchoRewardRouter(address _contract) onlyAdmin external{ muchoRewardRouter = IMuchoRewardRouter(_contract);}
 
     RewardSplit rewardSplit;
     IMuchoProtocol compoundProtocol;
@@ -346,9 +346,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     function setCompoundProtocol(IMuchoProtocol _target) onlyTraderOrAdmin external{
         compoundProtocol = _target;
-    }
-    function setMuchoRewardRouter(address _contract) onlyAdmin external{
-        muchoRewardRouter = IMuchoRewardRouter(_contract);
     }
 
     function getLastPeriodsApr(address _token) external view returns(int256[30] memory){
