@@ -13,9 +13,11 @@ contract GLPVaultMock is IGLPVault {
     using SafeMath for uint256;
 
     IPriceFeed priceFeed;
-
-    constructor(IERC20 _usdc, IERC20 _weth, IERC20 _wbtc, IPriceFeed _pFeed){
+    function setPriceFeed(IPriceFeed _pFeed) external{
         priceFeed = _pFeed;
+    }
+
+    constructor(){
     }
     
     function taxBasisPoints() external pure returns (uint256){

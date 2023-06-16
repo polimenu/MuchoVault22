@@ -42,24 +42,24 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     }
 
     uint256 public aprUpdatePeriod = 1 days;
-    function setAprUpdatePeriod(uint256 _seconds) external onlyAdmin{ aprUpdatePeriod = _seconds; }
+    function setAprUpdatePeriod(uint256 _seconds) external onlyTraderOrAdmin{ aprUpdatePeriod = _seconds; }
 
-    uint256 slippage = 100;
-    function setSlippage(uint256 _slippage) external onlyOwner{
-        require(_slippage >= 200 && _slippage <= 1000, "not in range"); slippage = _slippage;
+    uint256 public slippage = 100;
+    function setSlippage(uint256 _slippage) external onlyTraderOrAdmin{
+        require(_slippage >= 10 && _slippage <= 1000, "not in range"); slippage = _slippage;
     }
 
     //Claim esGmx, set false to save gas
     bool public claimEsGmx = false;
-    function updateClaimEsGMX(bool _new) external onlyOwner { claimEsGmx = _new; }
+    function updateClaimEsGMX(bool _new) external onlyTraderOrAdmin { claimEsGmx = _new; }
 
     //GMX tokens - escrowed GMX and staked GLP
     IERC20 public EsGMX = IERC20(0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA);
-    function updateEsGMX(address _new) external onlyOwner { EsGMX = IERC20(_new); }
+    function updateEsGMX(address _new) external onlyAdmin { EsGMX = IERC20(_new); }
     IERC20 public fsGLP = IERC20 (0x1aDDD80E6039594eE970E5872D247bf0414C8903);
-    function updatefsGLP(address _new) external onlyOwner { fsGLP = IERC20(_new); }
+    function updatefsGLP(address _new) external onlyAdmin { fsGLP = IERC20(_new); }
     IERC20 public WETH = IERC20 (0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
-    function updateWETH(address _new) external onlyOwner { WETH = IERC20(_new); }
+    function updateWETH(address _new) external onlyAdmin { WETH = IERC20(_new); }
 
     //Interfaces to interact with GMX protocol
 
@@ -72,7 +72,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     function updateRewardRouter(address _newRouter) external onlyAdmin { glpRewardRouter = IRewardRouter(_newRouter); } 
 
     //GLP Staking Pool address:
-    address poolGLP = 0x3963FfC9dff443c2A94f21b129D429891E32ec18;
+    address public poolGLP = 0x3963FfC9dff443c2A94f21b129D429891E32ec18;
     function updatepoolGLP(address _newManager) external onlyAdmin { poolGLP = _newManager; } 
 
     //GLP Vault
@@ -80,33 +80,33 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     function updateGLPVault(address _newVault) external onlyAdmin { glpVault = IGLPVault(_newVault); } 
 
     //MuchoRewardRouter Interaction for NFT Holders
-    IMuchoRewardRouter muchoRewardRouter = IMuchoRewardRouter(0x0000000000000000000000000000000000000000);
+    IMuchoRewardRouter public muchoRewardRouter = IMuchoRewardRouter(0x0000000000000000000000000000000000000000);
     function setMuchoRewardRouter(address _contract) onlyAdmin external{ muchoRewardRouter = IMuchoRewardRouter(_contract);}
 
-    RewardSplit rewardSplit;
-    IMuchoProtocol compoundProtocol;
+    RewardSplit public rewardSplit;
+    IMuchoProtocol public compoundProtocol;
     mapping(address => AprInfo) tokenAprInfo;
    
     // Safety not-invested margin min and desired (2 decimals)
     uint256 public minNotInvestedPercentage = 250;
-    function setMinNotInvestedPercentage(uint256 _percent) external onlyAdmin {
+    function setMinNotInvestedPercentage(uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 9000 && _percent >= 0, "MuchoProtocolGMX: minNotInvestedPercentage not in range");
         minNotInvestedPercentage = _percent;
     }
     uint256 public desiredNotInvestedPercentage = 500;
-    function setDesiredNotInvestedPercentage(uint256 _percent) external onlyAdmin {
+    function setDesiredNotInvestedPercentage(uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 9000 && _percent >= 0, "MuchoProtocolGMX: desiredNotInvestedPercentage not in range");
         desiredNotInvestedPercentage = _percent;
     }
 
     //If variation against desired weight is less than this, do not move:
     uint256 public minBasisPointsMove = 100; 
-    function setMinWeightBasisPointsMove(uint256 _percent) external onlyAdmin {
+    function setMinWeightBasisPointsMove(uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 500 && _percent > 0, "MuchoProtocolGMX: minBasisPointsMove not in range");
         minBasisPointsMove = _percent;
     }
 
-    IGLPPriceFeed priceFeed;
+    IGLPPriceFeed public priceFeed;
     function setPriceFeed(IGLPPriceFeed _feed) onlyAdmin external{
         priceFeed = _feed;
     }
@@ -120,7 +120,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     //Manual mode for desired weights (in automatic, gets it from GLP Contract):
     bool public manualModeWeights = false;
-    function setManualModeWeights(bool _manual) external onlyOwner { manualModeWeights = _manual; }
+    function setManualModeWeights(bool _manual) external onlyTraderOrAdmin { manualModeWeights = _manual; }
     mapping(address => uint256) glpWeight;
     mapping(address => uint256) glpUsdgs;
     function updateGlpWeights() onlyTraderOrAdmin public{
@@ -165,7 +165,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     }
 
     //Sets manually the desired weight for a vault
-    function setWeight(address _token, uint256 _percent) external onlyOwner {
+    function setWeight(address _token, uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 7000 && _percent > 0, "MuchoProtocolGmx.setWeight: not in range");
         require(manualModeWeights, "MuchoProtocolGmx.setWeight: automatic mode");
         glpWeight[_token] = _percent;
@@ -192,9 +192,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     }
 
 
-    function refreshInvestment() onlyTraderOrAdmin external {
-        
-
+    function refreshInvestment() onlyOwner external {
         if(!manualModeWeights)
             updateGlpWeights();
         (uint256 totalUsd, uint256[] memory tokenUsd) = getTotalUSDWithTokensUsd();

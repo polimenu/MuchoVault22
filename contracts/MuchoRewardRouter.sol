@@ -27,23 +27,15 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
 
     //NFT Plan ID allowed get rewards
     EnumerableSet.UintSet planList;
-    /*uint256[] public planIdAllowed;
-    mapping(uint256 => uint) public planIdIndex;*/
 
     //Allows to power up rewards for some plans
     mapping(uint256 => uint) public planMultiplier;
 
     //List of users
     EnumerableSet.AddressSet userAddressList;
-    /*address[] private userList;
-    mapping(address => uint) public userIndex;*/
 
     //Reward tokens
     EnumerableSet.AddressSet rewardTokenList;
-    /*IERC20 public rewardToken = IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
-    function setRewardToken(address _rt) public onlyOwner{
-        rewardToken = IERC20(_rt);
-    }*/
 
     //Badge manager and setter
     IMuchoBadgeManager public badgeManager = IMuchoBadgeManager(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
@@ -62,21 +54,11 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
     //Checks if a user exists and adds it to the list
     function addUserIfNotExists(address _user) public onlyOwner {
         userAddressList.add(_user);
-        /*if(userIndex[_user] == 0){
-            uint index = userList.length.add(1);
-            userList[index] = _user;
-            userIndex[_user] = index;
-        }*/
     }
     
     //Removes a user if exists in the lust
     function removeUserIfExists(address _user) public onlyOwner {
         userAddressList.remove(_user);
-        /*uint index = userIndex[_user];
-        if(index > 0){
-            userList.removeAt(index);
-            delete userIndex[_user];
-        }*/
     }
     
 
@@ -88,13 +70,6 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
 
         planList.add(_planId);
         planMultiplier[_planId] = _multiplier;
-
-        /*require(planIdIndex[_planId] == 0, "Plan already added");
-        
-        uint index = planIdAllowed.length.add(1);
-        planIdAllowed[index] = _planId;
-        planIdIndex[_planId] = index;
-        planMultiplier[_planId] = _multiplier;*/
     }
     
     //Removes a plan benefits
@@ -102,19 +77,11 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
         require(planList.contains(_planId), "Plan not found");
         planList.remove(_planId);
         delete planMultiplier[_planId];
-
-        /*require(planIdIndex[_planId] > 0, "Plan not found");
-
-        uint index = planIdIndex[_planId];
-        planIdAllowed.removeAt(index);
-        delete planIdIndex[_planId];
-        delete planMultiplier[_planId];*/
     }
 
     //Changes the multiplier for a plan
     function setMultiplier(uint256 _planId, uint _multiplier) public onlyOwner {
         require(planList.contains(_planId), "Plan not found");
-        //require(planIdIndex[_planId] > 0, "Plan not found");
         planMultiplier[_planId] = _multiplier;
     }
 
@@ -173,6 +140,10 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
 
         //Get the money
         rewardToken.safeTransfer(msg.sender, amount);
+
+        //if no balance left, remove token from list
+        if(rewardToken.balanceOf(address(this)) == 0)
+            rewardTokenList.remove(_token);
 
         return amount;
     }
