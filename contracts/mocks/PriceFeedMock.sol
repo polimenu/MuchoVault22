@@ -12,6 +12,10 @@ contract PriceFeedMock is IPriceFeed{
         prices[_wbtc] = 27000 * 10**30;
     }
 
+    function addToken(address _token, uint256 _price) external{
+        prices[_token] = _price;
+    }
+
     function getPrice(address _token) external virtual view returns(uint256){
         return prices[_token];
     }

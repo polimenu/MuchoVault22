@@ -43,7 +43,7 @@ interface IMuchoRewardRouter{
     function withdrawToken(address _token) external returns(uint256);
 
     //Withdraws all the rewards the user has
-    function withdraw() external returns(uint256);
+    function withdraw() external;
 
     //For a user, gets the amount ponderation percentage (basis points) for a new deposit. This will be needed to calculate estimated APR of the deposit
     function getUserAmountPonderation(address _user, uint256 _amountUSD) external view returns(uint256);
