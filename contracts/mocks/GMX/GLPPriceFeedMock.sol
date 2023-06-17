@@ -36,7 +36,4 @@ contract GLPPriceFeedMock is IGLPPriceFeed, PriceFeedMock {
                     .div(glp.totalSupply());
     }
 
-    function getPrice(address _token) external view override(PriceFeedMock, IPriceFeed) returns(uint256){
-        return PriceFeedMock(address(this)).getPrice(_token);
-    }
 }

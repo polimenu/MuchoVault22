@@ -17,6 +17,7 @@ import "../MuchoRoles.sol";
 import "../../lib/AprInfo.sol";
 //import "./IMuchoGMXController.sol";
 //import "../../lib/UintSafe.sol";
+import "hardhat/console.sol";
 
 contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
@@ -111,6 +112,10 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         priceFeed = _feed;
     }
 
+    function addToken(address _token) onlyAdmin external{
+        tokenList.add(_token);
+    }
+
     function addSecondaryToken(address _mainToken, address _secondary) onlyAdmin external{
         tokenToSecondaryTokens[_mainToken].add(_secondary);
     }
@@ -148,13 +153,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     //Gets the total USDG in GLP and the USDG in GLP for each of our vaults' tokens:
     function getTotalAndUpdateVaultsUsdg() internal returns(uint256){
+        //console.log("   SOL - getTotalAndUpdateVaultsUsdg");
         uint256 totalUsdg;
         for(uint i = 0; i < tokenList.length(); i = i.add(1)){
+            //console.log("   SOL - token", i);
+
             address token = tokenList.at(i);
             uint256 vaultUsdg = glpVault.usdgAmounts(token);
+            //console.log("   SOL - token usdg", vaultUsdg);
             
             for(uint j = 0; j < tokenToSecondaryTokens[token].length(); j = j.add(1)){
-                vaultUsdg = vaultUsdg.add(glpVault.usdgAmounts(tokenToSecondaryTokens[token].at(j)));
+                uint256 secUsdg = glpVault.usdgAmounts(tokenToSecondaryTokens[token].at(j));
+                //console.log("   SOL - SECONDARY token", j);
+                //console.log("   SOL - SECONDARY token usdg", secUsdg);
+                vaultUsdg = vaultUsdg.add(secUsdg);
             }
 
             glpUsdgs[token] = vaultUsdg;
@@ -191,7 +203,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         return (minToken, minUsd);
     }
 
-
+//ToDo: trader, admin or owner!
     function refreshInvestment() onlyOwner external {
         if(!manualModeWeights)
             updateGlpWeights();
@@ -332,9 +344,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         return amountToTransfer;
     }
     function notifyDeposit(address _token, uint256 _amount) onlyOwner nonReentrant external{
-        tokenList.add(_token);
+        require(validToken(_token), "MuchoProtocolGMX.notifyDeposit: token not supported");
         tokenAmount[_token] = tokenAmount[_token].add(_amount);
         tokenAmountFromDeposits[_token] = tokenAmountFromDeposits[_token].add(_amount);
+    }
+
+    function validToken(address _token) internal view returns(bool){
+        if(tokenList.contains(_token))
+            return true;
+        
+        for(uint256 i = 0; i < tokenList.length(); i = i.add(1)){
+            if(tokenToSecondaryTokens[tokenList.at(i)].contains(_token))
+                return true;
+        }
+        return false;
     }
 
     function setRewardPercentages(RewardSplit calldata _split) onlyTraderOrAdmin external{
@@ -357,6 +380,9 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
     }
     function getTotalStaked(address _token) public view returns(uint256){
         return tokenAmount[_token];
+    }
+    function getTokenWeight(address _token) external view returns(uint256){
+        return glpWeight[_token];
     }
 
     function getTotalUSD() public view returns(uint256){

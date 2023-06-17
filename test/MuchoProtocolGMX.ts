@@ -50,6 +50,8 @@ describe("MuchoProtocolGMXTest", async function () {
     //Deploy rest of mocks
     const glpVault = await (await ethers.getContractFactory("GLPVaultMock")).deploy();
     const glpPriceFeed = await (await ethers.getContractFactory("GLPPriceFeedMock")).deploy(usdc.address, weth.address, wbtc.address, glpVault.address, glp.address);
+    await glpPriceFeed.addToken(usdt.address, toBN(1, 30));
+    await glpPriceFeed.addToken(dai.address, toBN(1, 30));
     await glpVault.setPriceFeed(glpPriceFeed.address);
     const glpRRct = await ethers.getContractFactory("GLPRewardRouterMock");
     const glpRewardRouter = await glpRRct.deploy(glp.address, glpPriceFeed.address, weth.address);
@@ -88,6 +90,13 @@ describe("MuchoProtocolGMXTest", async function () {
     await mMuchoGMX.grantRole(eth.utils.formatBytes32String("0"), admin.address);
     await mMuchoGMX.grantRole(TRADER_ROLE, trader.address);
     await mMuchoGMX.transferOwnership(owner.address);
+
+    //Add tokens
+    await mMuchoGMX.addToken(usdc.address);
+    await mMuchoGMX.addToken(weth.address);
+    await mMuchoGMX.addToken(wbtc.address);
+    await mMuchoGMX.addSecondaryToken(usdc.address, usdt.address);
+    await mMuchoGMX.addSecondaryToken(usdc.address, dai.address);
 
     //Set parameters
     const APR_UPDATE_PERIOD = 24*3600;
@@ -141,13 +150,52 @@ describe("MuchoProtocolGMXTest", async function () {
   }
 
 
-  describe("aaa", async function () {
-    it("bbb", async function () {
-      const { mMuchoGMX, users, 
-        glpVault, glpPriceFeed, glpRewardRouter, glpRouter, 
-        mRewardRouter, 
-        tokens, glpToken} = await loadFixture(deployMuchoGMX);
+  describe("Weights", async function () {
+    it("Read weights from GLP", async function () {
+      const { mMuchoGMX, users, glpVault, glpPriceFeed, glpRewardRouter, glpRouter, 
+        mRewardRouter, tokens, glpToken} = await loadFixture(deployMuchoGMX);
 
+        const WETH_PRICE = await glpPriceFeed.getPrice(tokens.weth.address);
+        const WBTC_PRICE = await glpPriceFeed.getPrice(tokens.wbtc.address);
+        const GLP_AMOUNTS = {
+          usdc: toBN(1000, 6),
+          usdt: toBN(100, 6),
+          dai: toBN(200, 6),
+          weth: toBN(600, 18+30).div(WETH_PRICE),
+          wbtc: toBN(400, 12+30).div(WBTC_PRICE),
+        };
+        const EXPECTED_WEIGHTS = {
+          usdc: 1300/2300,
+          weth: 600/2300,
+          wbtc: 400/2300,
+        }
+        await tokens.usdc.mint(glpVault.address, GLP_AMOUNTS.usdc);
+        await tokens.usdt.mint(glpVault.address, GLP_AMOUNTS.usdt);
+        await tokens.dai.mint(glpVault.address, GLP_AMOUNTS.dai);
+        await tokens.weth.mint(glpVault.address, GLP_AMOUNTS.weth);
+        await tokens.wbtc.mint(glpVault.address, GLP_AMOUNTS.wbtc);
+
+        //Test reads glp weights properly
+        await mMuchoGMX.updateGlpWeights();
+        expect(await mMuchoGMX.getTokenWeight(tokens.usdc.address)).closeTo(toBN(EXPECTED_WEIGHTS.usdc, 4), 1);
+        expect(await mMuchoGMX.getTokenWeight(tokens.weth.address)).closeTo(toBN(EXPECTED_WEIGHTS.weth, 4), 1);
+        expect(await mMuchoGMX.getTokenWeight(tokens.wbtc.address)).closeTo(toBN(EXPECTED_WEIGHTS.wbtc, 4), 1);
+
+        //Transfer to vaults
+        const AMOUNTS = {
+          usdc: toBN(300, 6),
+          weth: toBN(300, 18+30).div(WETH_PRICE),
+          wbtc: toBN(300, 12+30).div(WBTC_PRICE),
+        };
+        await tokens.usdc.mint(mMuchoGMX.address, AMOUNTS.usdc);
+        await mMuchoGMX.connect(users.owner).notifyDeposit(tokens.usdc.address, AMOUNTS.usdc);
+        await tokens.weth.mint(mMuchoGMX.address, AMOUNTS.weth);
+        await mMuchoGMX.connect(users.owner).notifyDeposit(tokens.weth.address, AMOUNTS.weth);
+        await tokens.wbtc.mint(mMuchoGMX.address, AMOUNTS.wbtc);
+        await mMuchoGMX.connect(users.owner).notifyDeposit(tokens.wbtc.address, AMOUNTS.wbtc);
+
+        //Update to weights
+        await mMuchoGMX.connect(users.owner).refreshInvestment();
     });
 
   });

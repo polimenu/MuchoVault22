@@ -29,7 +29,8 @@ contract GLPVaultMock is IGLPVault {
     }
 
     function usdgAmounts(address _token) external view returns (uint256){
-        return IERC20(_token).balanceOf(address(this)).mul(priceFeed.getPrice(_token)).div(10**30);
+        uint256 decimals = IERC20Metadata(_token).decimals();
+        return IERC20(_token).balanceOf(address(this)).mul(priceFeed.getPrice(_token)).div(10**(30-18+decimals));
     }
 
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, uint256 _taxBasisPoints, bool _increment) external view returns (uint256){
