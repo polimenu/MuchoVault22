@@ -61,9 +61,12 @@ describe("MuchoProtocolGMXTest", async function () {
     const mRewardRouter = await (await ethers.getContractFactory("MuchoRewardRouter")).deploy();
 
     //Deploy main contract
-    const mMuchoGMX = await (await ethers.getContractFactory("MuchoProtocolGMX")).deploy();
+    const mMuchoGMX = await (await ethers.getContractFactory("MuchoProtocolGMX")).connect(owner).deploy();
 
     //set contracts:
+    await mMuchoGMX.updatefsGLP(glp.address);
+    expect(await mMuchoGMX.fsGLP()).equal(glp.address);
+
     await mMuchoGMX.updateRouter(glpRouter.address);
     expect(await mMuchoGMX.glpRouter()).equal(glpRouter.address);
 
@@ -87,7 +90,8 @@ describe("MuchoProtocolGMXTest", async function () {
     
     //Set ownerships
     const TRADER_ROLE = await mMuchoGMX.TRADER();
-    await mMuchoGMX.grantRole(eth.utils.formatBytes32String("0"), admin.address);
+    const ADMIN_ROLE = await mMuchoGMX.DEFAULT_ADMIN_ROLE();
+    await mMuchoGMX.grantRole(ADMIN_ROLE, admin.address);
     await mMuchoGMX.grantRole(TRADER_ROLE, trader.address);
     await mMuchoGMX.transferOwnership(owner.address);
 
@@ -176,7 +180,7 @@ describe("MuchoProtocolGMXTest", async function () {
         await tokens.wbtc.mint(glpVault.address, GLP_AMOUNTS.wbtc);
 
         //Test reads glp weights properly
-        await mMuchoGMX.updateGlpWeights();
+        await mMuchoGMX.connect(users.admin).updateGlpWeights();
         expect(await mMuchoGMX.getTokenWeight(tokens.usdc.address)).closeTo(toBN(EXPECTED_WEIGHTS.usdc, 4), 1);
         expect(await mMuchoGMX.getTokenWeight(tokens.weth.address)).closeTo(toBN(EXPECTED_WEIGHTS.weth, 4), 1);
         expect(await mMuchoGMX.getTokenWeight(tokens.wbtc.address)).closeTo(toBN(EXPECTED_WEIGHTS.wbtc, 4), 1);

@@ -205,16 +205,23 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
 //ToDo: trader, admin or owner!
     function refreshInvestment() onlyOwner external {
+        console.log("    SOL - refreshInvestment");
         if(!manualModeWeights)
             updateGlpWeights();
+
+        console.log("    SOL - getTotalUSDWithTokensUsd");
         (uint256 totalUsd, uint256[] memory tokenUsd) = getTotalUSDWithTokensUsd();
+        console.log("    SOL - getMinTokenByWeight");
         (address minTokenByWeight, uint256 minTokenUsd) = getMinTokenByWeight(totalUsd, tokenUsd);
 
         //Calculate and do move for the minimum weight token
+        console.log("    SOL - doMinTokenWeightMove");
         doMinTokenWeightMove(minTokenByWeight, minTokenUsd);
 
         //Calc new total USD
+        console.log("    SOL - getTokenTotalUsd");
         minTokenUsd = getTokenTotalUSD(minTokenByWeight);
+        console.log("    SOL - getTokenTotalUsd done", minTokenUsd);
         totalUsd = minTokenUsd.mul(10000).div(glpWeight[minTokenByWeight]);
  
         //Calculate move for every token different from the main one:
@@ -390,10 +397,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         return totalUsd;
     }
     function getTotalUSDWithTokensUsd() public view returns(uint256, uint256[] memory){
+        
+        console.log("    SOL - getTotalUSDWithTokensUsd");
         uint256 totalUsd = 0;
+        console.log("    SOL - getTotalUSDWithTokensUsd init array");
         uint256[] memory tokenUsds = new uint256[](tokenList.length());
-        uint256 totalGlpUsd = fsGLP.balanceOf(address(this)).mul(priceFeed.getGLPprice());
+        console.log("    SOL - getTotalUSDWithTokensUsd totalGlpUsd");
+        uint8 decimals = IERC20Metadata(address(fsGLP)).decimals();
+        console.log("    SOL - agetTotalUSDWithTokensUsd decimals", decimals);
+        uint256 glpPrice = priceFeed.getGLPprice().div(10**(30+decimals-18));
+        console.log("    SOL - getTotalUSDWithTokensUsd glpPrice", glpPrice);
+        uint256 totalGlpUsd = fsGLP.balanceOf(address(this)).mul(glpPrice);
+        console.log("    SOL - getTotalUSDWithTokensUsd totalGlpUsd", totalGlpUsd);
 
+        console.log("    SOL - getTotalUSDWithTokensUsd loop");
         for(uint256 i = 0; i < tokenList.length(); i = i.add(1)){
             address token = tokenList.at(i);
             //Add not invested balance
@@ -404,13 +421,18 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
             tokenUsds[i] = tokenUsd;
         }
 
+
+        console.log("    SOL - getTotalUSDWithTokensUsd loop END");
         return (totalUsd, tokenUsds);
     }
     function getTokenTotalUSD(address _token) public  view returns(uint256){
+        console.log("    SOL - Getting totalGlpUsd");
         uint256 totalGlpUsd = fsGLP.balanceOf(address(this)).mul(priceFeed.getGLPprice());
         //Add not invested balance
+        console.log("    SOL - Getting tokenUsd");
         uint256 tokenUsd = IERC20(_token).balanceOf(address(this)).mul(priceFeed.getPrice(_token));
         //Add glp part
+        console.log("    SOL - Getting tokenUsd, adding glp part");
         tokenUsd = tokenUsd.add(totalGlpUsd.mul(glpWeight[_token]).div(10000));
 
         return tokenUsd;
