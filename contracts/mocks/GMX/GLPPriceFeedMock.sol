@@ -28,7 +28,7 @@ contract GLPPriceFeedMock is IGLPPriceFeed, PriceFeedMock {
     }
 
     function getGLPprice() external view returns (uint256){
-
+        require(glp.totalSupply() > 0, "GLPPriceFeedMock.getGLPPrice: No GLP supply");
         return glpVault.usdgAmounts(address(usdc))
                     .add(glpVault.usdgAmounts(address(weth)))
                     .add(glpVault.usdgAmounts(address(wbtc)))

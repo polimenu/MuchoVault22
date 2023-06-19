@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IMuchoToken.sol";
+import "hardhat/console.sol";
+
 
 contract GLPRouterMock is IGLPRouter {
     using SafeMath for uint256;
@@ -20,12 +22,14 @@ contract GLPRouterMock is IGLPRouter {
 
     constructor(
         IGLPVault _glpVault,
+        IGLPPriceFeed _pFeed,
         IMuchoToken _glp,
         IERC20 _usdc,
         IERC20 _weth,
         IERC20 _wbtc
     ) {
       glpVault = _glpVault;
+      priceFeed = _pFeed;
       glp = _glp;
       primaryTokens[0] = _usdc;
       primaryTokens[1] = _weth;
@@ -51,6 +55,8 @@ contract GLPRouterMock is IGLPRouter {
       glp.burn(msg.sender, _glpAmount);
 
       //transfer original token to sender
+      glpVault.allowRouter(address(token), tkAmount);
+      console.log("Transferring", address(this), address(token), tkAmount);
       token.safeTransferFrom(address(glpVault), msg.sender, tkAmount);
     }
 
@@ -64,13 +70,19 @@ contract GLPRouterMock is IGLPRouter {
       IERC20 token = findToken(_token);
 
       //store original token in this contract
-      token.safeTransferFrom(msg.sender, address(glpVault), _amount);
+      //token.safeTransferFrom(msg.sender, address(glpVault), _amount);
+      glpVault.receiveTokenFrom(msg.sender, address(token), _amount);
+      console.log("Sent to vault token", address(token), _amount);
 
       //calc glp amount to mint
       uint256 mintFee = glpVault.getFeeBasisPoints(_token, 1, 1, 1, true);
+      console.log("mintFee", mintFee);
       uint256 glpPrice = priceFeed.getGLPprice();
+      console.log("glpPrice", glpPrice);
       uint256 usdOriginalToken = priceFeed.getPrice(address(token)).mul(_amount).div(10**30);
+      console.log("usdOriginalToken", usdOriginalToken);
       uint256 tkAmount = usdOriginalToken.mul(1 ether).div(glpPrice).mul(10000 - mintFee).div(10000);
+      console.log("tkAmount", tkAmount);
 
       //mint glp
       glp.mint(msg.sender, tkAmount);

@@ -7,14 +7,31 @@ import "../../../interfaces/IPriceFeed.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "hardhat/console.sol";
 
 contract GLPVaultMock is IGLPVault {
 
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     IPriceFeed priceFeed;
     function setPriceFeed(IPriceFeed _pFeed) external{
         priceFeed = _pFeed;
+    }
+
+    address router;
+    function setRouter(address _rt) external{
+        router = _rt;
+    }
+    
+    function allowRouter(address _token, uint256 _amount) external{
+        require(msg.sender == router, "No router");
+        console.log("Approving spent", router, _token, _amount);
+        IERC20(_token).approve(router, _amount);
+    }
+
+    function receiveTokenFrom(address _sender, address _token, uint256 _amount) external{
+        IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
     }
 
     constructor(){
