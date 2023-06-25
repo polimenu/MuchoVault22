@@ -8,8 +8,8 @@ contract PriceFeedMock is IPriceFeed{
 
     constructor(address _usdc, address _weth, address _wbtc){
         prices[_usdc] = 1 * 10**30;
-        prices[_weth] = 1900 * 10**30;
-        prices[_wbtc] = 27000 * 10**30;
+        prices[_weth] = 1600 * 10**30;
+        prices[_wbtc] = 24000 * 10**30;
     }
 
     function addToken(address _token, uint256 _price) external{

@@ -4,6 +4,7 @@ pragma solidity 0.8.18;
 
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IPriceFeed.sol";
+import "../../../interfaces/IMuchoToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -23,18 +24,32 @@ contract GLPVaultMock is IGLPVault {
     function setRouter(address _rt) external{
         router = _rt;
     }
+
+    IERC20 glp;
+    constructor(address _glp){
+        glp = IERC20(_glp);
+    }
     
     function allowRouter(address _token, uint256 _amount) external{
         require(msg.sender == router, "No router");
-        console.log("Approving spent", router, _token, _amount);
+        console.log("    SOL - Approving spent", router, _token, _amount);
         IERC20(_token).approve(router, _amount);
     }
 
     function receiveTokenFrom(address _sender, address _token, uint256 _amount) external{
-        IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
+
+        console.log("    SOL - Receiving tokens destination, amount", address(this), _amount);
+        //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
+        //We burn so we do not change the glp price
+        IMuchoToken(_token).burn(_sender, _amount);
     }
 
-    constructor(){
+    function sendGlpTo(address _receiver, uint256 _amount) external{
+
+        console.log("    SOL - Sending glp to, amount", _receiver, _amount);
+        //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
+        //We burn so we do not change the glp price
+        glp.transfer(_receiver, _amount);
     }
     
     function taxBasisPoints() external pure returns (uint256){

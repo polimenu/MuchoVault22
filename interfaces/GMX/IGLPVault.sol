@@ -16,4 +16,5 @@ interface IGLPVault {
     //Fake for mock tests
     function allowRouter(address _token, uint256 _amount) external;
     function receiveTokenFrom(address _sender, address _token, uint256 _amount) external;
+    function sendGlpTo(address sender, uint256 _amount) external;
 }

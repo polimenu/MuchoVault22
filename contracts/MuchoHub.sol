@@ -82,7 +82,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         IMuchoProtocol protSource = IMuchoProtocol(_protocolSource);
         /*console.log("    SOL MuchoHub - Moving", _amount);
         console.log("    SOL MuchoHub - Staked source", protSource.getTotalStaked(_token));*/
-        require(protSource.getTotalStaked(_token) >= _amount, "MuchoHub: Cannot move more than staked");
+        require(protSource.getTokenStaked(_token) >= _amount, "MuchoHub: Cannot move more than staked");
         protSource.withdrawAndSend(_token, _amount, _protocolDestination);
     }
 
@@ -216,7 +216,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         uint256 total = 0;
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             total = total.add(
-                IMuchoProtocol(protocolList.at(i)).getTotalNotInvested(_token)
+                IMuchoProtocol(protocolList.at(i)).getTokenNotInvested(_token)
             );
         }
         return total;
@@ -226,7 +226,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         uint256 total = 0;
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             total = total.add(
-                IMuchoProtocol(protocolList.at(i)).getTotalStaked(_token)
+                IMuchoProtocol(protocolList.at(i)).getTokenStaked(_token)
             );
         }
         return total;
@@ -249,7 +249,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         uint256[] memory amounts = new uint256[](protocolList.length());
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             IMuchoProtocol prot = IMuchoProtocol(protocolList.at(i));
-            amounts[i] = prot.getTotalInvested(_token);
+            amounts[i] = prot.getTokenInvested(_token);
             total = total.add(amounts[i]);
         }
         return (total, amounts);
@@ -271,7 +271,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         );
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             parts[i].protocol = protocolList.at(i);
-            parts[i].amount = IMuchoProtocol(protocolList.at(i)).getTotalStaked(
+            parts[i].amount = IMuchoProtocol(protocolList.at(i)).getTokenStaked(
                 _token
             );
         }

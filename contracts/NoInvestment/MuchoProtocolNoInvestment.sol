@@ -64,15 +64,28 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
         int256[30] memory apr;
         return apr;
     }
-    function getTotalNotInvested(address _token) public view returns(uint256){
+    function getTokenNotInvested(address _token) public view returns(uint256){
         return IERC20(_token).balanceOf(address(this));
     }
-    function getTotalStaked(address _token) public view returns(uint256){
-        return getTotalNotInvested(_token);
+    function getTokenStaked(address _token) public view returns(uint256){
+        return getTokenNotInvested(_token);
     }
-    function getTotalInvested(address _token) public view returns(uint256){
-        return getTotalStaked(_token).sub(getTotalNotInvested(_token));
+    function getTokenInvested(address _token) public view returns(uint256){
+        return getTokenStaked(_token).sub(getTokenNotInvested(_token));
     }
+
+    function getTokenUSDInvested(address _token) external pure returns(uint256){
+        return 0;
+    }
+    function getTokenUSDNotInvested(address _token) external view returns(uint256){
+        uint8 decimals = IERC20Metadata(_token).decimals();
+        return getTokenNotInvested(_token).mul(priceFeed.getPrice(_token)).div(10**(30-18+decimals));
+    }
+    function getTokenUSDStaked(address _token) external view returns(uint256){
+        uint8 decimals = IERC20Metadata(_token).decimals();
+        return getTokenStaked(_token).mul(priceFeed.getPrice(_token)).div(10**(30-18+decimals));
+    }
+
     function getTotalUSD() external view returns(uint256){
         uint256 totalUsd = 0;
         for(uint256 i = 0; i < tokenList.length(); i = i.add(1)){

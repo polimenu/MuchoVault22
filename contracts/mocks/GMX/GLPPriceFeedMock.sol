@@ -6,6 +6,7 @@ import "../../../interfaces/GMX/IGLPVault.sol";
 import "../PriceFeedMock.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "hardhat/console.sol";
 
 contract GLPPriceFeedMock is IGLPPriceFeed, PriceFeedMock {
 
@@ -29,10 +30,15 @@ contract GLPPriceFeedMock is IGLPPriceFeed, PriceFeedMock {
 
     function getGLPprice() external view returns (uint256){
         require(glp.totalSupply() > 0, "GLPPriceFeedMock.getGLPPrice: No GLP supply");
+        //console.log("********GET GLP PRICE*************");
+        //console.log("USDG amounts", glpVault.usdgAmounts(address(usdc))
+        //            .add(glpVault.usdgAmounts(address(weth)))
+        //            .add(glpVault.usdgAmounts(address(wbtc))));
+        //console.log("GLP supply", glp.totalSupply());
         return glpVault.usdgAmounts(address(usdc))
                     .add(glpVault.usdgAmounts(address(weth)))
                     .add(glpVault.usdgAmounts(address(wbtc)))
-                    .mul(1 ether)
+                    .mul(10**30)
                     .div(glp.totalSupply());
     }
 

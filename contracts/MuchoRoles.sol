@@ -40,6 +40,11 @@ abstract contract MuchoRoles is AccessControl, Ownable{
         _;
     }
 
+    modifier onlyOwnerTraderOrAdmin(){
+        require(hasRole(TRADER, msg.sender) || hasRole(CONTRACT_OWNER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "MuchoRoles: Only for trader or admin");
+        _;
+    }
+
     function changeProtocolOwner(address _newAdmin) public onlyAdmin{
         _protocolOwner = _newAdmin;
     }

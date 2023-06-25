@@ -41,8 +41,11 @@ interface IMuchoProtocol{
     function setMuchoRewardRouter(address _contract) external;
 
     function getLastPeriodsApr(address _token) external view returns(int256[30] memory);
-    function getTotalNotInvested(address _token) external view returns(uint256);
-    function getTotalInvested(address _token) external view returns(uint256);
-    function getTotalStaked(address _token) external view returns(uint256);
+    function getTokenNotInvested(address _token) external view returns(uint256);
+    function getTokenInvested(address _token) external view returns(uint256);
+    function getTokenStaked(address _token) external view returns(uint256);
+    function getTokenUSDNotInvested(address _token) external view returns(uint256);
+    function getTokenUSDInvested(address _token) external view returns(uint256);
+    function getTokenUSDStaked(address _token) external view returns(uint256);
     function getTotalUSD() external view returns(uint256);
 }

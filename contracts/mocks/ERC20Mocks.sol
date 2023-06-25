@@ -109,13 +109,13 @@ contract WBTC is ERC20{
 contract GLP is ERC20{
 
     constructor() ERC20("GLP", "GLP"){ 
-        _mint(msg.sender, 1000000 * 10**18);
+        //_mint(msg.sender, 1000000 * 10**18);
     }
 
     function decimals() public override pure returns(uint8){
         return 18;
     }
-
+    
     function mint(address _to, uint256 _amount) external{
         _mint(_to, _amount);
     }
