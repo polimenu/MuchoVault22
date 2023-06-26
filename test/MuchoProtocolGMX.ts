@@ -114,7 +114,7 @@ describe("MuchoProtocolGMXTest", async function () {
     await mMuchoGMX.setAprUpdatePeriod(APR_UPDATE_PERIOD);
     expect(await mMuchoGMX.aprUpdatePeriod()).equal(APR_UPDATE_PERIOD);
 
-    const SLIPPAGE = 10;
+    const SLIPPAGE = 100;
     await mMuchoGMX.setSlippage(SLIPPAGE);
     expect(await mMuchoGMX.slippage()).equal(SLIPPAGE);
 
@@ -189,6 +189,8 @@ describe("MuchoProtocolGMXTest", async function () {
         EXPECTED_USD: ExpectedAmounts,
         EXPECTED_AMOUNTS: ExpectedAmounts) => {
 
+        console.log("*****Start test*********");
+
         //Mint or burn ERC20 tokens for having in GLP Vault the exact amount requested
         for(const token in tokens){
           const bal:eth.BigNumber = await tokens[token].balanceOf(glpVault.address);
@@ -223,22 +225,50 @@ describe("MuchoProtocolGMXTest", async function () {
         expect(await mMuchoGMX.getTokenWeight(tokens.wbtc.address)).equal(toBN(EXPECTED_WEIGHTS.wbtc, 4));
 
         //Depositing or withdrawing tokens in vaults
-        for(const token in tokens){
-          const bal:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[token].address);
-          const newAm:eth.BigNumber = DEPOSIT_AMOUNTS[token];
+        for(const itk in tokens){
+          const bal:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[itk].address);
+          const dec:number = await tokens[itk].decimals();
+          console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
+          const newAm:eth.BigNumber = DEPOSIT_AMOUNTS[itk];
           if(bal.lt(newAm)){
-            console.log(`Depositing amount ${newAm.sub(bal)} for token ${token}`);
-            await tokens[token].mint(mMuchoGMX.address, newAm.sub(bal));
-            await mMuchoGMX.connect(users.owner).notifyDeposit(tokens[token].address, newAm.sub(bal));
+            console.log(`Depositing amount ${newAm.sub(bal)} for token ${itk}`);
+            await tokens[itk].mint(mMuchoGMX.address, newAm.sub(bal));
+            await mMuchoGMX.connect(users.owner).notifyDeposit(tokens[itk].address, newAm.sub(bal));
           }
           else if(newAm.lt(bal)){
-            console.log(`Withdrawing amount ${bal.sub(newAm)} for token ${token}`)
-            await mMuchoGMX.connect(users.owner).withdrawAndSend(tokens[token].address, bal.sub(newAm), users.user.address);
+            const toWdr = bal.sub(newAm);
+            console.log(`Withdrawing amount ${toWdr} for token ${itk}`)
+            const txWdr = await mMuchoGMX.connect(users.owner).notInvestedTrySend(tokens[itk].address, toWdr, users.user.address);
+            const rc = await txWdr.wait();
+            const wdr = rc.events.find(e => e.event === 'WithdrawnNotInvested').args[2];
+            console.log(`Withdrawn from not invested: ${wdr} for token ${itk}`)
+
+            if(wdr.lt(toWdr)){
+              const wdrInv = toWdr.sub(wdr);
+              console.log(`Withdrawing from investment amount ${wdrInv} for token ${itk}`)
+              await mMuchoGMX.connect(users.owner).withdrawAndSend(tokens[itk].address, wdrInv, users.user.address);
+            }
           }
           else{
-            console.log(`Nothing to withdraw or deposit for token ${token}`)
+            console.log(`Nothing to withdraw or deposit for token ${itk}`)
           }
+
+          const nbal:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[itk].address);
+          const ninv:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenInvested(tokens[itk].address);
+          const nninv:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenNotInvested(tokens[itk].address);
+          console.log(`FINAL Balance in MuchoVault ${itk} (${tokens[itk].address}): ${fromBN(nbal, dec)}, invested ${fromBN(ninv, dec)}, not investesd ${fromBN(nninv, dec)}`);
+
+          const nubal:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens[itk].address);
+          const nuinv:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenUSDInvested(tokens[itk].address);
+          const nuninv:eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenUSDNotInvested(tokens[itk].address);
+          console.log(`FINAL USD Balance in MuchoVault ${itk} (${tokens[itk].address}): ${fromBN(nubal, 18)}, invested ${fromBN(nuinv, 18)}, not investesd ${fromBN(nuninv, 18)}`);
+
+          const usdcBal = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address);
+          console.log(`SEMI-FINAL USDC Balance in MuchoVault (${tokens.usdc.address}): ${fromBN(usdcBal, 6)}`);
         }
+
+        const usdcBal = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address);
+        console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(usdcBal, 6)}`);
 
         //Update to weights
         await mMuchoGMX.connect(users.owner).refreshInvestment();
@@ -366,15 +396,15 @@ describe("MuchoProtocolGMXTest", async function () {
         }
         ,
         {
-          usdc: { precision: 4, staked: 299.2725, invested: 290.2725, notInvested: 9 },
-          weth: { precision: 4, staked: 299.7090, invested: 116.1090, notInvested: 183.60 },
-          wbtc: { precision: 4, staked: 299.8545, invested: 58.0545, notInvested: 241.80 },
+          usdc: { precision: 4, staked: 299.3937, invested: 241.8937, notInvested: 57.5 },
+          weth: { precision: 4, staked: 99.7575, invested: 96.7575, notInvested: 3 },
+          wbtc: { precision: 4, staked: 299.8787, invested: 48.3787, notInvested: 251.5 },
         }
         ,
         {
-          usdc: { precision: 4, staked: 299.2725, invested: 290.2725, notInvested: 9 },
-          weth: { precision: 6, staked: 0.187318, invested: 0.072568, notInvested: 0.114750 },
-          wbtc: { precision: 7, staked: 0.0124939, invested: 0.0024189, notInvested: 0.0100750 },
+          usdc: { precision: 4, staked: 299.3937, invested: 241.8937, notInvested: 57.5 },
+          weth: { precision: 6, staked: 0.062348, invested: 0.060473, notInvested: 0.001875 },
+          wbtc: { precision: 7, staked: 0.0124949, invested: 0.0020158, notInvested: 0.0104792 },
         }
       );
 

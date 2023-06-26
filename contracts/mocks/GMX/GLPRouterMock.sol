@@ -43,11 +43,13 @@ contract GLPRouterMock is IGLPRouter {
         uint256 _minOut,
         address _receiver
     ) external returns (uint256) {
+      console.log("    SOL***unstakeAndRedeemGlp***", _tokenOut, _glpAmount);
       IERC20 token = findToken(_tokenOut);
 
       //calc glp amount to burn
       uint8 decimalsToken = IERC20Metadata(_tokenOut).decimals();
       uint256 burnFee = glpVault.getFeeBasisPoints(_tokenOut, 1, 1, 1, false);
+      console.log("    SOL - burnFee", burnFee);
       uint256 usdGlp = priceFeed.getGLPprice().mul(_glpAmount).div(10**30).mul(10000 - burnFee).div(10000);
       uint256 tkAmount = usdGlp.mul(10**(30+decimalsToken-18)).div(priceFeed.getPrice(address(token)));
       console.log("    SOL - usdGlp, tkAmount", usdGlp, tkAmount);

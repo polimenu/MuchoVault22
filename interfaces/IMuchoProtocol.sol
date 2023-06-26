@@ -26,6 +26,8 @@ Vistas (públicas): getApr
 */
 
 interface IMuchoProtocol{
+    event WithdrawnNotInvested(address token, address to, uint256 amount);
+
     function protocolName() external returns(string memory);
     function protocolDescription() external returns(string memory);
 
