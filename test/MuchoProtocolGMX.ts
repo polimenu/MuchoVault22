@@ -310,11 +310,11 @@ describe("MuchoProtocolGMXTest", async function () {
       //Test Values: https://docs.google.com/spreadsheets/d/1OBsrnXMI5orVMv7alr9ZSxZ4F0rT6xvfJxqut-F71yY/edit#gid=1507133984
       await TestWeightAndRefresh(toBN(2500, 18),
         {
-          usdc: toBN(1000, 6),
-          usdt: toBN(300, 6),
-          dai: toBN(200, 6),
-          weth: toBN(600, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          usdc: toBN(1000*1e6, 6),
+          usdt: toBN(300*1e6, 6),
+          dai: toBN(200*1e6, 6),
+          weth: toBN(600*1e6, 18 + 30).div(WETH_PRICE),
+          wbtc: toBN(300*1e6, 12 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -345,11 +345,11 @@ describe("MuchoProtocolGMXTest", async function () {
 
       await TestWeightAndRefresh(toBN(2500, 18),
         {
-          usdc: toBN(1000, 6),
-          usdt: toBN(300, 6),
-          dai: toBN(200, 6),
-          weth: toBN(600, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          usdc: toBN(1000*1e6, 6),
+          usdt: toBN(300*1e6, 6),
+          dai: toBN(200*1e6, 6),
+          weth: toBN(600*1e6, 18 + 30).div(WETH_PRICE),
+          wbtc: toBN(300*1e6, 12 + 30).div(WBTC_PRICE),
         }
         ,
         {

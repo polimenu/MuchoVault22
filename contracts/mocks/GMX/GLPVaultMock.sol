@@ -33,7 +33,7 @@ contract GLPVaultMock is IGLPVault {
     function allowRouter(address _token, uint256 _amount) external{
         require(msg.sender == router, "No router");
         console.log("    SOL - Approving spent", router, _token, _amount);
-        IERC20(_token).approve(router, _amount);
+        IERC20(_token).safeApprove(router, _amount);
     }
 
     function receiveTokenFrom(address _sender, address _token, uint256 _amount) external{
@@ -49,7 +49,7 @@ contract GLPVaultMock is IGLPVault {
         console.log("    SOL - Sending glp to, amount", _receiver, _amount);
         //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
         //We burn so we do not change the glp price
-        glp.transfer(_receiver, _amount);
+        glp.safeTransfer(_receiver, _amount);
     }
     
     function taxBasisPoints() external pure returns (uint256){

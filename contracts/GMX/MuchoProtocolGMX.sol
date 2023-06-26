@@ -275,7 +275,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         uint256 totalBalance = getTokenStaked(_minTokenByWeight);
         uint256 notInvestedBalance = getTokenNotInvested(_minTokenByWeight);
         uint256 notInvestedBP = notInvestedBalance.mul(10000).div(totalBalance);
-        //console.log("    SOL - Not invested balance and BP and desiredBP", notInvestedBalance, notInvestedBP, desiredNotInvestedPercentage);
+        console.log("    SOL - Not invested balance and BP and desiredBP", notInvestedBalance, notInvestedBP, desiredNotInvestedPercentage);
 
         //Invested less than desired:
         if(notInvestedBP > desiredNotInvestedPercentage && notInvestedBP.sub(desiredNotInvestedPercentage) > minBasisPointsMove){ 
@@ -288,7 +288,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         //Invested more than desired:
         else if(notInvestedBP < minNotInvestedPercentage){
             uint256 amountToMove = desiredNotInvestedPercentage.mul(totalBalance).div(10000).sub(notInvestedBalance);
-            //console.log("    SOL - Will swap GLP to (amount token)", amountToMove, _minTokenByWeight);
+            console.log("    SOL - Will swap GLP to (amount token)", amountToMove, _minTokenByWeight);
             swapGLPto(amountToMove, _minTokenByWeight, 0);
         }
 
@@ -362,15 +362,25 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
         muchoRewardRouter.depositRewards(address(WETH), stakersAmount);
 
         //send the rest to owner
-        WETH.transfer(owner(),  WETH.balanceOf(address(this)));
+        WETH.safeTransfer(owner(),  WETH.balanceOf(address(this)));
     }
 
     function withdrawAndSend(address _token, uint256 _amount, address _target) onlyOwner nonReentrant external{
-        uint256 usdAmount = _amount.mul(priceFeed.getPrice(_token));
-        uint256 glpOut = usdAmount.mul(uint256(10000).add(slippage)).div(10000).div(priceFeed.getGLPprice());
+        console.log("    SOL ***withdrawAndSend***");
+        uint8 tkDecimals = IERC20Metadata(_token).decimals();
+        uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
+        console.log("    SOL - tkdecimals, glpDecimals", tkDecimals, glpDecimals);
+        uint256 usdAmount = _amount.mul(priceFeed.getPrice(_token)).div(10**(30-18+tkDecimals));
+        console.log("    SOL - _amount, usdAmount", _amount, usdAmount);
+        console.log("    SOL - slippage", slippage);
+        console.log("    SOL - glpPrice", priceFeed.getGLPprice().div(10**26));
+        uint256 glpOut = usdAmount.mul(uint256(10000).add(slippage)).div(10000).mul(10**(30+glpDecimals-18)).div(priceFeed.getGLPprice());
+        console.log("    SOL - glpOut", glpOut);
         swapGLPto(glpOut, _token, _amount);
         IERC20(_token).safeTransfer(_target, _amount);
+        console.log("    SOL ***END withdrawAndSend***");
     }
+
     function notInvestedTrySend(address _token, uint256 _amount, address _target) onlyOwner nonReentrant public returns(uint256){
         IERC20 tk = IERC20(_token);
         uint256 balance = tk.balanceOf(address(this));
@@ -487,7 +497,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard{
 
     //Mint GLP from token
     function swaptoGLP(uint256 _amount, address token) private returns(uint256) {
-        IERC20(token).safeApprove(poolGLP, _amount);
+        IERC20(token).safeIncreaseAllowance(poolGLP, _amount);
         uint256 resGlp = glpRouter.mintAndStakeGlp(token, _amount,0, 0);
         console.log("    SOL - ***swaptoGLP*** (token, in, out)", address(token), _amount, resGlp);
 

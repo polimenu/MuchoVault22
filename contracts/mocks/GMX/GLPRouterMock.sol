@@ -46,13 +46,15 @@ contract GLPRouterMock is IGLPRouter {
       IERC20 token = findToken(_tokenOut);
 
       //calc glp amount to burn
+      uint8 decimalsToken = IERC20Metadata(_tokenOut).decimals();
       uint256 burnFee = glpVault.getFeeBasisPoints(_tokenOut, 1, 1, 1, false);
       uint256 usdGlp = priceFeed.getGLPprice().mul(_glpAmount).div(10**30).mul(10000 - burnFee).div(10000);
-      uint256 priceOriginalToken = priceFeed.getPrice(address(token)).div(10**30);
-      uint256 tkAmount = usdGlp.mul(1 ether).div(priceOriginalToken);
+      uint256 tkAmount = usdGlp.mul(10**(30+decimalsToken-18)).div(priceFeed.getPrice(address(token)));
+      console.log("    SOL - usdGlp, tkAmount", usdGlp, tkAmount);
 
-      //burn glp
-      IERC20(address(glp)).safeTransferFrom(msg.sender, address(this), _glpAmount);
+      //burn glp & mint, to simulate unstake and remove liquidity
+      IMuchoToken(address(glp)).burn(msg.sender, _glpAmount);
+      IMuchoToken(address(glp)).mint(address(glpVault), _glpAmount);
 
       //transfer original token to sender
       glpVault.allowRouter(address(token), tkAmount);
