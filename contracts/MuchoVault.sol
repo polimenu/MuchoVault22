@@ -12,7 +12,7 @@ import "../interfaces/IPriceFeed.sol";
 import "./MuchoRoles.sol";
 import "../lib/UintSafe.sol";
 import "../lib/AprInfo.sol";
-//import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
@@ -179,9 +179,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     //Gets the number of tokens user will get from a mucho swap:
     function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view
                      validVault(_sourceVaultId) validVault(_destVaultId) returns(uint256) {
+        console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
         require(_amountSourceMToken > 0, "MuchoVaultV2.swapMuchoToken: Insufficent amount");
 
         uint256 ownerAmount = getSwapFee(msg.sender).mul(_amountSourceMToken).div(10000);
+        console.log("    SOL - ownerAmount", ownerAmount);
         uint256 destOutAmount = 
                     getDestinationAmountMuchoTokenExchange(_sourceVaultId, _destVaultId, _amountSourceMToken, ownerAmount);
 
@@ -430,13 +432,21 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         uint256 decimalsDest = vaultInfo[_destVaultId].depositToken.decimals();
         uint256 decimalsSource = vaultInfo[_sourceVaultId].depositToken.decimals();
 
+        console.log("    SOL - prices", sourcePrice, destPrice);
+        console.log("    SOL - decimals", decimalsSource, decimalsDest);
+
         //Subtract owner fee
         if(_ownerFeeAmount > 0){
             _amountSourceMToken = _amountSourceMToken.sub(_ownerFeeAmount);
         }
 
+        console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
+
         uint256 amountTargetForUser = 0;
         {
+            console.log("    SOL - totalStaked", vaultInfo[_sourceVaultId].totalStaked);
+            console.log("    SOL - sourcePrice", sourcePrice);
+            console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
             amountTargetForUser = _amountSourceMToken
                                         .mul(vaultInfo[_sourceVaultId].totalStaked)
                                         .mul(sourcePrice)
@@ -444,11 +454,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
         //decimals handling
         if(decimalsDest > decimalsSource){
-            //console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
+            console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
             amountTargetForUser = amountTargetForUser.mul(10**(decimalsDest - decimalsSource));
         }
         else if(decimalsDest < decimalsSource){
-            //console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
+            console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
             amountTargetForUser = amountTargetForUser.div(10**(decimalsSource - decimalsDest));
         }
 

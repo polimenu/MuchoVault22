@@ -127,8 +127,23 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         require(_amount < getTotalStaked(_token), "Cannot withdraw more than total staked");
         uint256 amountPending = _amount;
 
-        //console.log("    SOL MuchoHub - WITHDRAW");
-        //console.log("    SOL MuchoHub - pending: ", amountPending);
+        /*console.log("    SOL MuchoHub - WITHDRAW");
+        console.log("    SOL MuchoHub - Start with not invested, pending: ", amountPending);*/
+
+        //First, not invested volumes
+        for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
+            amountPending = amountPending.sub(
+                IMuchoProtocol(protocolList.at(i)).notInvestedTrySend(_token, amountPending, _investor)
+            );
+
+            //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
+
+            if (amountPending == 0)
+                //Already filled amount
+                return;
+        }
+
+        //console.log("    SOL MuchoHub - Continue with invested, pending: ", amountPending);
 
         //Secondly, invested volumes proportional to usd volume
         (uint256 totalInvested, uint256[] memory amountList) = getTotalInvestedAndList(_token);
