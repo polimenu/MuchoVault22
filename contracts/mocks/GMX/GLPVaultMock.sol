@@ -68,6 +68,7 @@ contract GLPVaultMock is IGLPVault {
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, uint256 _taxBasisPoints, bool _increment) external view returns (uint256){
         //mint fee
         if(_increment) return 25;
+        //burn fee
         return 30;
     }
 }

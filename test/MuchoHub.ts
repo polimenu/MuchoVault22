@@ -55,7 +55,8 @@ describe("MuchoHubTest", async function () {
 
     //Set ownerships
     const TRADER_ROLE = await mHub.TRADER();
-    await mHub.grantRole(eth.utils.formatBytes32String("0"), admin.address);
+    const ADMIN_ROLE = await mHub.DEFAULT_ADMIN_ROLE();
+    await mHub.grantRole(ADMIN_ROLE, admin.address);
     await mHub.grantRole(TRADER_ROLE, trader.address);
     await mHub.transferOwnership(hubOwner.address);
 

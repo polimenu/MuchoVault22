@@ -13,6 +13,7 @@ import "../interfaces/IMuchoRewardRouter.sol";
 import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IMuchoToken.sol";
 import "../interfaces/IMuchoVault.sol";
+import "hardhat/console.sol";
 
 
 
@@ -90,9 +91,10 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
 
     //Deposit the rewards and split among the users
     function depositRewards(address _token, uint256 _amount) public nonReentrant{
+        console.log("    SOL-***depositRewards***");
         IERC20 rewardToken = IERC20(_token);
         require(rewardToken.balanceOf(msg.sender) >= _amount, "Not enough balance");
-        require(rewardToken.allowance(msg.sender, address(this)) >= _amount, "Not enough balance");
+        require(rewardToken.allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
 
         //Get the money
         rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -110,6 +112,7 @@ contract MuchoRewardRouter is Ownable, ReentrancyGuard, IMuchoRewardRouter, Much
         }
 
         rewardTokenList.add(_token);
+        console.log("    SOL-***END depositRewards***");
     }
 
     //For a user, gets the amount ponderation percentage (basis points) for a new deposit. This will be needed to calculate estimated APR of the deposit
