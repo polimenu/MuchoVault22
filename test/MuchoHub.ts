@@ -56,9 +56,10 @@ describe("MuchoHubTest", async function () {
     //Set ownerships
     const TRADER_ROLE = await mHub.TRADER();
     const ADMIN_ROLE = await mHub.DEFAULT_ADMIN_ROLE();
+    const OWNER_ROLE = await mHub.CONTRACT_OWNER();
     await mHub.grantRole(ADMIN_ROLE, admin.address);
     await mHub.grantRole(TRADER_ROLE, trader.address);
-    await mHub.transferOwnership(hubOwner.address);
+    await mHub.grantRole(OWNER_ROLE, hubOwner.address);
 
     //Set mocks as contracts for vault
     expect((await mHub.protocols()).length).equal(0, "Protocol counter > 0 when nobody added one");
@@ -482,7 +483,7 @@ describe("MuchoHubTest", async function () {
 
 
       //OWNER (contract owner)
-      const ONLY_OWNER_REASON = "Ownable: caller is not the owner";
+      const ONLY_OWNER_REASON = "MuchoRoles: Only for owner";
       await expect(hub.connect(users.user).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
       await expect(hub.connect(users.trader).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
       await expect(hub.connect(users.admin).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);

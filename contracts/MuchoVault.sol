@@ -46,6 +46,10 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     IMuchoBadgeManager private badgeManager = IMuchoBadgeManager(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
     function setBadgeManager(address _contract) external onlyAdmin { badgeManager = IMuchoBadgeManager(_contract); }
 
+    //Address where we send profits from fees:
+    address public earningsAddress;
+    function setEarningsAddress(address _addr) external onlyAdmin{ earningsAddress = _addr; }
+
 
     /*--------------------------PARAMETERS--------------------------------------*/
     //Every time we update values and this period passed since last time, we save an APR for the period:
@@ -223,7 +227,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
         //Send fee to protocol owner
         if(sourceOwnerAmount > 0)
-            sMToken.mint(protocolOwner(), sourceOwnerAmount);
+            sMToken.mint(earningsAddress, sourceOwnerAmount);
         
         //Send result to user
         dMToken.mint(msg.sender, destOutAmount);

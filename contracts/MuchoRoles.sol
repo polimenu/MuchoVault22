@@ -2,9 +2,8 @@
 pragma solidity 0.8.18;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 
-abstract contract MuchoRoles is AccessControl, Ownable{
+abstract contract MuchoRoles is AccessControl{
     bytes32 public constant CONTRACT_OWNER = keccak256("CONTRACT_OWNER");
     bytes32 public constant TRADER = keccak256("TRADER");
 
@@ -38,5 +37,10 @@ abstract contract MuchoRoles is AccessControl, Ownable{
         _;
     }
 
+
+    modifier onlyOwner(){
+        require(hasRole(CONTRACT_OWNER, msg.sender), "MuchoRoles: Only for owner");
+        _;
+    }
 
 }

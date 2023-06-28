@@ -103,10 +103,11 @@ describe("MuchoProtocolGMXTest", async function () {
 
     //Set ownerships
     const TRADER_ROLE = await mMuchoGMX.TRADER();
+    const OWNER_ROLE = await mMuchoGMX.CONTRACT_OWNER();
     const ADMIN_ROLE = await mMuchoGMX.DEFAULT_ADMIN_ROLE();
     await mMuchoGMX.grantRole(ADMIN_ROLE, admin.address);
     await mMuchoGMX.grantRole(TRADER_ROLE, trader.address);
-    await mMuchoGMX.transferOwnership(owner.address);
+    await mMuchoGMX.grantRole(OWNER_ROLE, owner.address);
 
     //Add tokens
     await mMuchoGMX.addToken(usdc.address);
@@ -831,7 +832,7 @@ describe("MuchoProtocolGMXTest", async function () {
 
 
       //OWNER (contract owner)
-      const ONLY_OWNER_REASON = "Ownable: caller is not the owner";
+      const ONLY_OWNER_REASON = "MuchoRoles: Only for owner";
       await expect(mMuchoGMX.connect(users.user).withdrawAndSend(FAKE_ADDRESS, 1, FAKE_ADDRESS)).revertedWith(ONLY_OWNER_REASON);
       await expect(mMuchoGMX.connect(users.trader).withdrawAndSend(FAKE_ADDRESS, 1, FAKE_ADDRESS)).revertedWith(ONLY_OWNER_REASON);
       await expect(mMuchoGMX.connect(users.admin).withdrawAndSend(FAKE_ADDRESS, 1, FAKE_ADDRESS)).revertedWith(ONLY_OWNER_REASON);

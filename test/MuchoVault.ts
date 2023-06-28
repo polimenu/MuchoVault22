@@ -67,6 +67,8 @@ describe("MuchoVaultTest", async function () {
     await mVault.addVault(weth.address, mweth.address);
     await mVault.addVault(wbtc.address, mwbtc.address);
 
+    await mVault.setEarningsAddress(admin.address);
+
     return {
       mVault, mHub, tk: [
         { t: usdc.address, m: musdc.address },
