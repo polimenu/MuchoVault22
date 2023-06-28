@@ -496,7 +496,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         console.log("    SOL ***END doNotMinTokenMove function***");
     }
 
-    function cycleRewards() external onlyTraderOrAdmin {
+    function cycleRewards() external onlyOwnerTraderOrAdmin {
         if (claimEsGmx) {
             glpRewardRouter.claimEsGmx();
             uint256 balanceEsGmx = EsGMX.balanceOf(address(this));
