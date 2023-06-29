@@ -26,7 +26,14 @@ Vistas (públicas): getApr
 */
 
 interface IMuchoProtocol{
+    event InvestmentRefreshed(address token, uint256 oldAmount, uint256 newAmount);
+    event EarnedRewards(address token, uint256 amount);
+    event WithdrawnInvested(address token, address to, uint256 amount);
     event WithdrawnNotInvested(address token, address to, uint256 amount);
+    event DepositNotified(address token, uint256 amount);
+    event RewardPercentagesChanged(RewardSplit split);
+    event CompoundProtocolChanged(IMuchoProtocol target);
+    event MuchoRewardRouterChanged(address router);
 
     function protocolName() external returns(string memory);
     function protocolDescription() external returns(string memory);
