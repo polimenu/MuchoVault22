@@ -187,14 +187,12 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         revert("Could not fill needed amount");
     }
 
-    function refreshInvestment(
-        address _protocol
-    ) public onlyTraderOrAdmin activeProtocol(_protocol) {
+    function refreshInvestment(address _protocol) public onlyOwnerTraderOrAdmin activeProtocol(_protocol) {
         IMuchoProtocol(_protocol).cycleRewards();
         IMuchoProtocol(_protocol).refreshInvestment();
     }
 
-    function refreshAllInvestments() external onlyTraderOrAdmin {
+    function refreshAllInvestments() external onlyOwnerTraderOrAdmin {
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             refreshInvestment(protocolList.at(i));
         }

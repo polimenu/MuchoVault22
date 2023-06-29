@@ -475,12 +475,10 @@ describe("MuchoHubTest", async function () {
       await expect(hub.connect(users.user).moveInvestment(FAKE_ADDRESS, 1E6, FAKE_ADDRESS, FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(hub.connect(users.owner).moveInvestment(FAKE_ADDRESS, 1E6, FAKE_ADDRESS, FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 
-      await expect(hub.connect(users.user).refreshInvestment(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(hub.connect(users.owner).refreshInvestment(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-
-      await expect(hub.connect(users.user).refreshAllInvestments()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(hub.connect(users.owner).refreshAllInvestments()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-
+      //OWNER, TRADER OR ADMIN
+      const ONLY_OWNER_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for owner, trader or admin";
+      await expect(hub.connect(users.user).refreshInvestment(FAKE_ADDRESS)).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
+      await expect(hub.connect(users.user).refreshAllInvestments()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
 
       //OWNER (contract owner)
       const ONLY_OWNER_REASON = "MuchoRoles: Only for owner";

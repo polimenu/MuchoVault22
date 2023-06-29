@@ -219,6 +219,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
         // Store all USDG value (deposit + secondary tokens) for each vault, and total USDG amount to divide later
         uint256 totalUsdg = getTotalAndUpdateVaultsUsdg();
+        console.log("    SOL - totalUsdg", totalUsdg);
 
         // Calculate weights for every vault
         uint256 totalWeight = 0;
@@ -333,24 +334,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     function updateTokensInvestment() internal {
         console.log("    SOL ***updateTokensInvested function***");
-        (
-            uint256 totalUsd,
-            uint256[] memory tokenUsd,
-            uint256[] memory tokenInvestedUsd
-        ) = getTotalUSDWithTokensUsd();
+        (uint256 totalUsd, uint256[] memory tokenUsd, uint256[] memory tokenInvestedUsd) = getTotalUSDWithTokensUsd();
         console.log("    SOL - totalUSD", totalUsd);
         console.log("    SOL - tokenUSD0", tokenList.at(0), tokenUsd[0]);
         console.log("    SOL - tokenUSD1", tokenList.at(1), tokenUsd[1]);
         console.log("    SOL - tokenUSD2", tokenList.at(2), tokenUsd[2]);
-        (address minTokenByWeight, uint256 minTokenUsd) = getMinTokenByWeight(
-            totalUsd,
-            tokenUsd
-        );
-        console.log(
-            "    SOL - minToken and USD",
-            minTokenByWeight,
-            minTokenUsd
-        );
+
+        //Only can do delta neutral if all tokens are present
+        if(tokenUsd[0] == 0 || tokenUsd[1] == 0 || tokenUsd[2] == 0){
+            console.log("    SOL - CANNOT INVEST SINCE A TOKEN HAS 0 VALUE");
+            return;
+        }
+
+        (address minTokenByWeight, uint256 minTokenUsd) = getMinTokenByWeight(totalUsd, tokenUsd);
+        console.log("    SOL - minToken and USD", minTokenByWeight, minTokenUsd);
 
         //Calculate and do move for the minimum weight token
         doMinTokenWeightMove(minTokenByWeight);
@@ -456,25 +453,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         uint256 _newUSDInvested
     ) internal {
         console.log("    SOL ***doNotMinTokenMove function*** (token)", _token);
-        console.log(
-            "    SOL    ***doNotMinTokenMove function*** (_totalTokenUSD, currentUSDInvested, newUSDInvested)",
-            _totalTokenUSD,
-            _currentUSDInvested,
-            _newUSDInvested
-        );
+        console.log("    SOL    ***doNotMinTokenMove function*** (_totalTokenUSD, currentUSDInvested, newUSDInvested)", 
+                    _totalTokenUSD, _currentUSDInvested, _newUSDInvested);
 
         //Invested less than desired:
-        if (
-            _newUSDInvested > _currentUSDInvested &&
-            _newUSDInvested.sub(_currentUSDInvested).mul(10000).div(
-                _totalTokenUSD
-            ) >
-            minBasisPointsMove
-        ) {
-            uint256 amountToMove = usdToToken(
-                _newUSDInvested.sub(_currentUSDInvested),
-                _token
-            );
+        if (_newUSDInvested > _currentUSDInvested && _newUSDInvested.sub(_currentUSDInvested).mul(10000).div(_totalTokenUSD) > minBasisPointsMove) {
+            uint256 amountToMove = usdToToken(_newUSDInvested.sub(_currentUSDInvested), _token);
             console.log("    SOL - Investing more (amountToken)", amountToMove);
             swaptoGLP(amountToMove, _token);
         }
@@ -684,7 +668,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     function getTokenUSDInvested(address _token) public view returns (uint256) {
-        console.log("    SOL-***getTokenUSDInvested***", _token);
+        //console.log("    SOL-***getTokenUSDInvested***", _token);
         return glpToUsd(fsGLP.balanceOf(address(this))).mul(glpWeight[_token]).div(10000);
     }
 

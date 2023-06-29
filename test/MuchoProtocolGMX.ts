@@ -814,14 +814,8 @@ describe("MuchoProtocolGMXTest", async function () {
       await expect(mMuchoGMX.connect(users.user).setManualModeWeights(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).setManualModeWeights(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 
-      await expect(mMuchoGMX.connect(users.user).updateGlpWeights()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mMuchoGMX.connect(users.owner).updateGlpWeights()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-
       await expect(mMuchoGMX.connect(users.user).setWeight(FAKE_ADDRESS, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).setWeight(FAKE_ADDRESS, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-
-      await expect(mMuchoGMX.connect(users.user).cycleRewards()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mMuchoGMX.connect(users.owner).cycleRewards()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 
       const FAKE_SPLIT:RewardSplitStruct = {ownerPercentage:100, NftPercentage: 200}
       await expect(mMuchoGMX.connect(users.user).setRewardPercentages(FAKE_SPLIT)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
@@ -830,6 +824,11 @@ describe("MuchoProtocolGMXTest", async function () {
       await expect(mMuchoGMX.connect(users.user).setCompoundProtocol(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).setCompoundProtocol(FAKE_ADDRESS)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 
+
+      //OWNER, TRADER OR ADMIN
+      const ONLY_OWNER_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for owner, trader or admin";
+      await expect(mMuchoGMX.connect(users.user).updateGlpWeights()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
+      await expect(mMuchoGMX.connect(users.user).cycleRewards()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
 
       //OWNER (contract owner)
       const ONLY_OWNER_REASON = "MuchoRoles: Only for owner";
