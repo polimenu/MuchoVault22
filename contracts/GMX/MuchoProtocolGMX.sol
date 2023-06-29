@@ -213,7 +213,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     mapping(address => uint256) glpUsdgs;
 
     //Updates desired weights from GLP in automatic mode:
-    function updateGlpWeights() public onlyTraderOrAdmin {
+    function updateGlpWeights() public onlyOwnerTraderOrAdmin {
         console.log("    SOL ***updateGlpWeights function***");
         require(!manualModeWeights, "MuchoProtocolGmx: manual mode");
 
@@ -517,32 +517,34 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         console.log("    SOL - rewards", rewards);
         console.log("    SOL - nft and owner percentages", rewardSplit.NftPercentage, rewardSplit.ownerPercentage);
 
-        //use compoundPercentage to calculate the total amount and swap to GLP
-        uint256 compoundAmount = rewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000);
-        console.log("    SOL - compoundAmount", compoundAmount);
-        if (compoundProtocol == this) {
-            //autocompound
-            console.log("    SOL - autocompounding");
-            swaptoGLP(compoundAmount, address(WETH));
-        } else {
-            console.log("    SOL - sending to another protocol");
-            notInvestedTrySend(
-                address(WETH),
-                compoundAmount,
-                address(compoundProtocol)
-            );
+        if(rewards > 0){
+            //use compoundPercentage to calculate the total amount and swap to GLP
+            uint256 compoundAmount = rewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000);
+            console.log("    SOL - compoundAmount", compoundAmount);
+            if (compoundProtocol == this) {
+                //autocompound
+                console.log("    SOL - autocompounding");
+                swaptoGLP(compoundAmount, address(WETH));
+            } else {
+                console.log("    SOL - sending to another protocol");
+                notInvestedTrySend(
+                    address(WETH),
+                    compoundAmount,
+                    address(compoundProtocol)
+                );
+            }
+
+            //use stakersPercentage to calculate the amount for rewarding stakers
+            uint256 stakersAmount = rewards.mul(rewardSplit.NftPercentage).div(10000);
+            console.log("    SOL - stakersAmount", stakersAmount);
+            WETH.approve(address(muchoRewardRouter), stakersAmount);
+            muchoRewardRouter.depositRewards(address(WETH), stakersAmount);
+
+            //send the rest to admin
+            uint256 adminAmount = rewards.sub(compoundAmount).sub(stakersAmount);
+            console.log("    SOL - adminAmount", adminAmount);
+            WETH.safeTransfer(earningsAddress, adminAmount);
         }
-
-        //use stakersPercentage to calculate the amount for rewarding stakers
-        uint256 stakersAmount = rewards.mul(rewardSplit.NftPercentage).div(10000);
-        console.log("    SOL - stakersAmount", stakersAmount);
-        WETH.approve(address(muchoRewardRouter), stakersAmount);
-        muchoRewardRouter.depositRewards(address(WETH), stakersAmount);
-
-        //send the rest to admin
-        uint256 adminAmount = rewards.sub(compoundAmount).sub(stakersAmount);
-        console.log("    SOL - adminAmount", adminAmount);
-        WETH.safeTransfer(earningsAddress, adminAmount);
     }
 
     function withdrawAndSend(
@@ -625,13 +627,9 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         address _token,
         uint256 _amount
     ) external onlyOwner nonReentrant {
-        require(
-            validToken(_token),
-            "MuchoProtocolGMX.notifyDeposit: token not supported"
-        );
-        tokenAmountFromDeposits[_token] = tokenAmountFromDeposits[_token].add(
-            _amount
-        );
+        console.log("    SOL***notifyDeposit***", _token, _amount);
+        require(validToken(_token), "MuchoProtocolGMX.notifyDeposit: token not supported");
+        tokenAmountFromDeposits[_token] = tokenAmountFromDeposits[_token].add(_amount);
     }
 
     function validToken(address _token) internal view returns (bool) {
@@ -686,10 +684,8 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     function getTokenUSDInvested(address _token) public view returns (uint256) {
-        return
-            glpToUsd(fsGLP.balanceOf(address(this))).mul(glpWeight[_token]).div(
-                10000
-            );
+        console.log("    SOL-***getTokenUSDInvested***", _token);
+        return glpToUsd(fsGLP.balanceOf(address(this))).mul(glpWeight[_token]).div(10000);
     }
 
     function getTokenUSDNotInvested(
@@ -833,10 +829,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     function glpToUsd(uint256 _glpAmount) internal view returns (uint256) {
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
-        return
-            _glpAmount.mul(priceFeed.getGLPprice()).div(
-                10 ** (30 + glpDecimals - 18)
-            );
+        return _glpAmount.mul(priceFeed.getGLPprice()).div(10 ** (30 + glpDecimals - 18));
     }
 
     //Mint GLP from token

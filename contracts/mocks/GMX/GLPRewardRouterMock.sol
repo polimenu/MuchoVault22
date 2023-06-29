@@ -25,6 +25,7 @@ contract GLPRewardRouterMock is IRewardRouter {
         glp = _glp;
         priceFeed = _pFeed;
         weth = _weth;
+        resetCounter();
     }
 
     function resetCounter() public{
@@ -47,17 +48,20 @@ contract GLPRewardRouterMock is IRewardRouter {
 
         uint256 usdValue = glp.balanceOf(msg.sender).mul(priceFeed.getGLPprice()).div(10**30);
         console.log("    SOL - usdValue of current glp", usdValue.div(10**14));
-        console.log("    SOL - current glp", glp.balanceOf(msg.sender).div(10**14));
-        console.log("    SOL - current glp price", priceFeed.getGLPprice().div(10**26));
-        
-        usdValue = usdValue.mul(uint256(apr)).mul(timeDiff).div(10000).div(365 days);
-        
-        console.log("    SOL - usdValue of reward", usdValue.div(10**14));
 
-        //uint256 
-        uint256 wethAmount = usdValue.mul(10**30).div(priceFeed.getPrice(address(weth)));
-        console.log("    SOL - wethAmount of reward", wethAmount);
-        weth.mint(msg.sender, wethAmount);
+        if(usdValue > 0){
+            console.log("    SOL - current glp", glp.balanceOf(msg.sender).div(10**14));
+            console.log("    SOL - current glp price", priceFeed.getGLPprice().div(10**26));
+            
+            usdValue = usdValue.mul(uint256(apr)).mul(timeDiff).div(10000).div(365 days);
+            
+            console.log("    SOL - usdValue of reward", usdValue.div(10**14));
+
+            //uint256 
+            uint256 wethAmount = usdValue.mul(10**30).div(priceFeed.getPrice(address(weth)));
+            console.log("    SOL - wethAmount of reward", wethAmount);
+            weth.mint(msg.sender, wethAmount);
+        }
     }
 
     function claimEsGmx() external{

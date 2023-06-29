@@ -7,6 +7,7 @@ import { BigNumber } from "bignumber.js";
 import { formatBytes32String } from "ethers/lib/utils";
 import { ethers as eth } from "ethers";
 import { InvestmentPartStruct } from "../typechain-types/contracts/MuchoHub";
+import { RewardSplitStruct } from "../typechain-types/interfaces/IMuchoProtocol";
 
 
 describe("MuchoVaultCompleteTest", async function () {
@@ -34,6 +35,8 @@ describe("MuchoVaultCompleteTest", async function () {
     const usdc = await deployContract("USDC");
     const weth = await deployContract("WETH");
     const wbtc = await deployContract("WBTC");
+    const usdt = await deployContract("USDT");
+    const dai = await deployContract("DAI");
 
     //Deploy muchoTokens
     const musdc = await deployContract("mUSDC");
@@ -54,7 +57,7 @@ describe("MuchoVaultCompleteTest", async function () {
     await mVault.grantRole(formatBytes32String("TRADER"), trader.address);
 
     //Deploy hub
-    const mHub = await deployHub(pFeed, admin, trader, user, mVault.address, usdc, weth, wbtc);
+    const mHub = await deployHub(pFeed, admin, trader, user, mVault.address, usdc, weth, wbtc, usdt, dai);
 
     //Grant ownership of muchoTokens
     await musdc.transferOwnership(mVault.address);
@@ -84,11 +87,11 @@ describe("MuchoVaultCompleteTest", async function () {
   }
 
   async function deployHub(pFeed:PriceFeedMock, admin:SignerWithAddress, trader:SignerWithAddress, user:SignerWithAddress, hubOwnerAddress:string,
-    usdc:eth.Contract, weth:eth.Contract, wbtc:eth.Contract){
+    usdc:eth.Contract, weth:eth.Contract, wbtc:eth.Contract, usdt:eth.Contract, dai:eth.Contract){
     //Deploy rest of mocks
     const mHub = await (await ethers.getContractFactory("MuchoHub")).deploy();
 
-    const mGmx = await deployMuchoGMX(admin, trader, user, mHub.address);
+    const mGmx = await deployMuchoGMX(admin, trader, user, mHub.address, usdc, weth, wbtc, usdt, dai);
 
     //Set ownerships
     const TRADER_ROLE = await mHub.TRADER();
@@ -112,14 +115,10 @@ describe("MuchoVaultCompleteTest", async function () {
     return mHub;
   }
 
-  async function deployMuchoGMX(admin:SignerWithAddress, trader:SignerWithAddress, user:SignerWithAddress, protocolOwnerAddress:string) {
+  async function deployMuchoGMX(admin:SignerWithAddress, trader:SignerWithAddress, user:SignerWithAddress, protocolOwnerAddress:string,
+    usdc:eth.Contract, weth:eth.Contract, wbtc:eth.Contract, usdt:eth.Contract, dai:eth.Contract) {
 
     //Deploy ERC20 fakes
-    const usdc = await deployContract("USDC");
-    const weth = await deployContract("WETH");
-    const wbtc = await deployContract("WBTC");
-    const usdt = await deployContract("USDT");
-    const dai = await deployContract("DAI");
     const glp = await deployContract("GLP");
 
     await usdc.mint(user.address, toBN(100000, 6));
@@ -230,7 +229,7 @@ describe("MuchoVaultCompleteTest", async function () {
     expect(await mMuchoGMX.manualModeWeights()).equal(MANUAL_WEIGHTS);
 
     const OWNER_PERCENTAGE = 2500; const NFT_PERCENTAGE = 1000;
-    const rwSplit: RewardSplitStruct = { ownerPercentage: OWNER_PERCENTAGE, NftPercentage: NFT_PERCENTAGE }
+    const rwSplit:RewardSplitStruct = { ownerPercentage: OWNER_PERCENTAGE, NftPercentage: NFT_PERCENTAGE }
     await mMuchoGMX.setRewardPercentages(rwSplit);
     expect((await mMuchoGMX.rewardSplit()).ownerPercentage).equal(OWNER_PERCENTAGE);
     expect((await mMuchoGMX.rewardSplit()).NftPercentage).equal(NFT_PERCENTAGE);
