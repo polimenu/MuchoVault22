@@ -27,6 +27,15 @@ Vistas (públicas): getApr
 */
 
 interface IMuchoHub{
+    event Deposited(address investor, address token, uint256 amount);
+    event Withdrawn(address investor, address token, uint256 amount);
+    event ProtocolAdded(address protocol);
+    event ProtocolRemoved(address protocol);
+    event InvestmentMoved(address token, uint256 amount, address protocolSource, address protocolDestination);
+    event DefaultInvestmentChanged(address token, InvestmentPart[] partitionList);
+    event InvestmentRefreshed(address protocol, address token, uint256 oldAmount, uint256 newAmount);
+
+
     function depositFrom(address _investor, address _token, uint256 _amount) external;
     function withdrawFrom(address _investor, address _token, uint256 _amount) external;
 
