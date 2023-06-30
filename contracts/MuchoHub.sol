@@ -237,6 +237,20 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         lastFullRefresh = block.timestamp;
     }
 
+    //Expected APR with current investment
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
+        require(tokenDefaultInvestment[_token].defined, "MuchoHub: Investment not defined for the token");
+
+        uint256 ponderatedApr = 0;
+        for(uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i++){
+            IMuchoProtocol p = IMuchoProtocol(tokenDefaultInvestment[_token].parts[i].protocol);
+            uint256 amount = _additionalAmount.mul(tokenDefaultInvestment[_token].parts[i].percentage).div(10000);
+            ponderatedApr = ponderatedApr.add(p.getExpectedAPR(_token, amount).mul(amount));
+        }
+
+        return ponderatedApr.div(_additionalAmount);
+    }
+
     function protocols() external view returns (address[] memory) {
         address[] memory list = new address[](protocolList.length());
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {

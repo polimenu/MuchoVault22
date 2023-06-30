@@ -75,4 +75,5 @@ interface IMuchoVault{
     function investorVaultTotalUSD(uint8 _vaultId, address _user) external view returns (uint256);
     function investorTotalUSD(address _user) external view returns (uint256);
     function muchoTokenToDepositTokenPrice(uint8 _vaultId) external view returns (uint256);
+    function getExpectedAPR(uint8 _vaultId, uint256 _additionalAmount) external view returns(uint256);
 }

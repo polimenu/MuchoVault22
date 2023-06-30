@@ -118,4 +118,10 @@ contract MuchoHubMock is IMuchoHub{
         out[0] = address(this);
         return out;
     }
+
+
+    //Expected APR with current investment
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
+        return uint256(apr);
+    }
 }

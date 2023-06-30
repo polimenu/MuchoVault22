@@ -355,6 +355,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
     /*---------------------------------INFO VIEWS---------------------------------------*/
 
+    //Gets the expected APR if we add an amount of token
+    function getExpectedAPR(uint8 _vaultId, uint256 _additionalAmount) external view returns(uint256){
+        return muchoHub.getExpectedAPR(address(vaultInfo[_vaultId].depositToken), _additionalAmount);
+    }
+
     //Displays total amount of staked tokens in a vault:
     function vaultTotalStaked(uint8 _vaultId) validVault(_vaultId) external view returns(uint256) {
         return vaultInfo[_vaultId].totalStaked;

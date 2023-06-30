@@ -70,6 +70,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     /*---------------------------Parameters--------------------------------*/
 
+
+
+    //GLP Yield APR from GMX --> used to estimate our APR
+    uint256 public glpApr;
+    function updateGlpApr(uint256 _apr) external onlyTraderOrAdmin{
+        glpApr = _apr;
+    }
+
+    //GLP mint fee for weth --> used to estimate our APR
+    uint256 public glpWethMintFee;
+    function updateGlpWethMintFee(uint256 _fee) external onlyTraderOrAdmin{
+        glpWethMintFee = _fee;
+    }
+
     //List of allowed tokens
     EnumerableSet.AddressSet tokenList;
     function addToken(address _token) external onlyAdmin {
@@ -266,9 +280,11 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         emit DepositNotified(msg.sender, _token, _amount, getTokenStaked(_token));
     }
 
-    //ToDo
+    //Expected APR with current investment
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
-        return 0;
+        uint256 investedPctg = getTokenInvested(_token).add(_additionalAmount).mul(10000).div(getTokenStaked(_token));
+        uint256 compoundPctg = 10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage;
+        return glpApr.mul(compoundPctg).mul(10000 - glpWethMintFee).mul(investedPctg).div(10**12);
     }
 
 

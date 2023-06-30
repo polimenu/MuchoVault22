@@ -53,4 +53,5 @@ interface IMuchoHub{
     function protocols() external view returns(address[] memory);
     function getTokenDefaults(address _token) external view returns (InvestmentPart[] memory);
     function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory);
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256);
 }
