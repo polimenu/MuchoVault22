@@ -1,3 +1,31 @@
+/*                               %@@@@@@@@@@@@@@@@@(                              
+                        ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                        
+                    /@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.                   
+                 &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(                
+              ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@              
+            *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            
+           @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          
+         &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*        
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&       
+       @@@@@@@@@@@@@   #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   &@@@@@@@@@@@      
+      &@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.   @@@@@@@@@@,     
+      @@@@@@@@@@&   .@@@@@@@@@@@@@@@@@&@@@@@@@@@&&@@@@@@@@@@@#   /@@@@@@@@@     
+     &@@@@@@@@@@    @@@@@&                 %          @@@@@@@@,   #@@@@@@@@,    
+     @@@@@@@@@@    @@@@@@@@%       &&        *@,       @@@@@@@@    @@@@@@@@%    
+     @@@@@@@@@@    @@@@@@@@%      @@@@      /@@@.      @@@@@@@@    @@@@@@@@&    
+     @@@@@@@@@@    &@@@@@@@%      @@@@      /@@@.      @@@@@@@@    @@@@@@@@/    
+     .@@@@@@@@@@    @@@@@@@%      @@@@      /@@@.      @@@@@@@    &@@@@@@@@     
+      @@@@@@@@@@@    @@@@&         @@        .@          @@@@.   @@@@@@@@@&     
+       @@@@@@@@@@@.   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@      
+        @@@@@@@@@@@@.  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@       
+         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#         
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           
+              @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             
+                &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@/               
+                   &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(                  
+                       @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#                      
+                            /@@@@@@@@@@@@@@@@@@@@@@@*  */
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
@@ -106,7 +134,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             IMuchoProtocol(part.protocol).refreshInvestment();
         }
 
-        emit Deposited(_investor, _token, _amount);
+        emit Deposited(_investor, _token, _amount, getTotalStaked(_token));
     }
 
     function withdrawFrom(address _investor, address _token, uint256 _amount) external onlyOwner nonReentrant {
@@ -126,7 +154,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
             //Already filled amount
             if (amountPending == 0){
-                emit Withdrawn(_investor, _token, _amount);
+                emit Withdrawn(_investor, _token, _amount, getTotalStaked(_token));
                 return;
             }
         }
@@ -150,7 +178,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
             //Already filled amount
             if (amountPending == 0){
-                emit Withdrawn(_investor, _token, _amount);
+                emit Withdrawn(_investor, _token, _amount, getTotalStaked(_token));
                 return;
             }
         }
@@ -170,7 +198,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
                 //Already filled amount
                 if (amountPending == 0){
-                    emit Withdrawn(_investor, _token, _amount);
+                    emit Withdrawn(_investor, _token, _amount, getTotalStaked(_token));
                     return;
                 }
             }

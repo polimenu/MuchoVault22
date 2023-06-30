@@ -91,6 +91,12 @@ contract MuchoProtocolMock is IMuchoProtocol {
         }
     }
 
+
+    //ToDo
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
+        return 0;
+    }
+
     function withdrawAndSend(
         address _token,
         uint256 _amount,

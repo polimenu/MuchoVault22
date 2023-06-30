@@ -81,6 +81,13 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
 
         return (tkOut, amOut);
     }
+
+
+
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
+        return 0;
+    }
+    
     function getTokenInvested(address _token) public view returns(uint256){
         return getTokenStaked(_token).sub(getTokenNotInvested(_token));
     }

@@ -28,9 +28,9 @@ Vistas (públicas): getApr
 interface IMuchoProtocol{
     event InvestmentRefreshed(address token, uint256 oldAmount, uint256 newAmount);
     event EarnedRewards(address token, uint256 amount);
-    event WithdrawnInvested(address token, address to, uint256 amount);
-    event WithdrawnNotInvested(address token, address to, uint256 amount);
-    event DepositNotified(address token, uint256 amount);
+    event WithdrawnInvested(address token, address to, uint256 amount, uint256 totalStakedAfter);
+    event WithdrawnNotInvested(address token, address to, uint256 amount, uint256 totalStakedAfter);
+    event DepositNotified(address from, address token, uint256 amount, uint256 totalStakedAfter);
     event RewardPercentagesChanged(RewardSplit splitBefore, RewardSplit splitAfter);
     event CompoundProtocolChanged(IMuchoProtocol oldProtocol, IMuchoProtocol newProtocol);
     event MuchoRewardRouterChanged(address oldRouter, address newRouter);
@@ -57,4 +57,5 @@ interface IMuchoProtocol{
     function getTokenUSDInvested(address _token) external view returns(uint256);
     function getTokenUSDStaked(address _token) external view returns(uint256);
     function getTotalUSD() external view returns(uint256);
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256);
 }

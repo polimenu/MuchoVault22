@@ -1,3 +1,31 @@
+/*                               %@@@@@@@@@@@@@@@@@(                              
+                        ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                        
+                    /@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.                   
+                 &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(                
+              ,@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@              
+            *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@            
+           @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          
+         &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*        
+        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&       
+       @@@@@@@@@@@@@   #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   &@@@@@@@@@@@      
+      &@@@@@@@@@@@    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.   @@@@@@@@@@,     
+      @@@@@@@@@@&   .@@@@@@@@@@@@@@@@@&@@@@@@@@@&&@@@@@@@@@@@#   /@@@@@@@@@     
+     &@@@@@@@@@@    @@@@@&                 %          @@@@@@@@,   #@@@@@@@@,    
+     @@@@@@@@@@    @@@@@@@@%       &&        *@,       @@@@@@@@    @@@@@@@@%    
+     @@@@@@@@@@    @@@@@@@@%      @@@@      /@@@.      @@@@@@@@    @@@@@@@@&    
+     @@@@@@@@@@    &@@@@@@@%      @@@@      /@@@.      @@@@@@@@    @@@@@@@@/    
+     .@@@@@@@@@@    @@@@@@@%      @@@@      /@@@.      @@@@@@@    &@@@@@@@@     
+      @@@@@@@@@@@    @@@@&         @@        .@          @@@@.   @@@@@@@@@&     
+       @@@@@@@@@@@.   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    @@@@@@@@@@      
+        @@@@@@@@@@@@.  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   @@@@@@@@@@@       
+         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#         
+            @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           
+              @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@             
+                &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@/               
+                   &@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@(                  
+                       @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#                      
+                            /@@@@@@@@@@@@@@@@@@@@@@@*  */
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
@@ -161,8 +189,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
     // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
     function updateVault(uint8 _vaultId) public onlyTraderOrAdmin validVault(_vaultId)  {
-        uint256 diffTime = block.timestamp.sub(vaultInfo[_vaultId].lastUpdate);
-
         //Update total staked
         vaultInfo[_vaultId].lastUpdate = block.timestamp;
         uint256 beforeStaked = vaultInfo[_vaultId].totalStaked;
@@ -290,8 +316,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.add(amountAfterFee);
 
         muchoHub.depositFrom(msg.sender, address(dToken), _amount);
+        updateVault(_vaultId);
 
-        emit Deposited(msg.sender, _vaultId, _amount);
+        emit Deposited(msg.sender, _vaultId, _amount, vaultInfo[_vaultId].totalStaked);
     }
 
     //Withdraws from a vault. The user should have muschoTokens that will be burnt
@@ -319,8 +346,10 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
 
         muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut);
+        updateVault(_vaultId);
 
-        emit Withdrawn(msg.sender, _vaultId, amountOut, _share);
+
+        emit Withdrawn(msg.sender, _vaultId, amountOut, _share, vaultInfo[_vaultId].totalStaked);
     }
 
 
