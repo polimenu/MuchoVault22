@@ -12,7 +12,6 @@ import "../interfaces/IMuchoRewardRouter.sol";
 import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IMuchoToken.sol";
 import "../interfaces/IMuchoVault.sol";
-import "hardhat/console.sol";
 
 
 
@@ -54,11 +53,13 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
     //Checks if a user exists and adds it to the list
     function addUserIfNotExists(address _user) public onlyOwner {
         userAddressList.add(_user);
+        emit UserAdded(_user);
     }
     
     //Removes a user if exists in the lust
     function removeUserIfExists(address _user) public onlyOwner {
         userAddressList.remove(_user);
+        emit UserRemoved(_user);
     }
     
 
@@ -70,6 +71,8 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
 
         planList.add(_planId);
         planMultiplier[_planId] = _multiplier;
+
+        emit PlanAdded(_planId, _multiplier);
     }
     
     //Removes a plan benefits
@@ -77,12 +80,14 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         require(planList.contains(_planId), "Plan not found");
         planList.remove(_planId);
         delete planMultiplier[_planId];
+        emit PlanRemoved(_planId);
     }
 
     //Changes the multiplier for a plan
     function setMultiplier(uint256 _planId, uint _multiplier) public onlyOwner {
         require(planList.contains(_planId), "Plan not found");
         planMultiplier[_planId] = _multiplier;
+        emit MultiplierChanged(_planId, _multiplier);
     }
 
     
@@ -90,7 +95,7 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
 
     //Deposit the rewards and split among the users
     function depositRewards(address _token, uint256 _amount) public nonReentrant{
-        console.log("    SOL-***depositRewards***");
+        //console.log("    SOL-***depositRewards***");
         IERC20 rewardToken = IERC20(_token);
         require(rewardToken.balanceOf(msg.sender) >= _amount, "Not enough balance");
         require(rewardToken.allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
@@ -111,7 +116,8 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         }
 
         rewardTokenList.add(_token);
-        console.log("    SOL-***END depositRewards***");
+        emit RewardsDeposited(_token, _amount);
+        //console.log("    SOL-***END depositRewards***");
     }
 
     //For a user, gets the amount ponderation percentage (basis points) for a new deposit. This will be needed to calculate estimated APR of the deposit
@@ -146,6 +152,8 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         //if no balance left, remove token from list
         if(rewardToken.balanceOf(address(this)) == 0)
             rewardTokenList.remove(_token);
+
+        emit Withdrawn(_token, amount);
 
         return amount;
     }

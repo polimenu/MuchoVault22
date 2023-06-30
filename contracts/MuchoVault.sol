@@ -11,8 +11,6 @@ import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IPriceFeed.sol";
 import "./MuchoRoles.sol";
 import "../lib/UintSafe.sol";
-import "../lib/AprInfo.sol";
-import "hardhat/console.sol";
 
 contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
@@ -20,10 +18,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     using SafeMath for uint256;
     using SafeMath for uint8;
     using UintSafe for uint256;
-    using AprLib for AprInfo;
 
     VaultInfo[] private vaultInfo;
-    AprInfo[] private aprInfo;
 
     /*-------------------------TYPES---------------------------------------------*/
     // Same (special fee) for MuchoBadge NFT holders:
@@ -36,19 +32,31 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
     //HUB for handling investment in the different protocols:
     IMuchoHub muchoHub = IMuchoHub(0x0000000000000000000000000000000000000000);
-    function setMuchoHub(address _contract) external onlyAdmin{ muchoHub = IMuchoHub(_contract); }
+    function setMuchoHub(address _contract) external onlyAdmin{ 
+        muchoHub = IMuchoHub(_contract);
+        emit MuchoHubChanged(_contract); 
+    }
 
     //Price feed to calculate USD values:
     IPriceFeed priceFeed = IPriceFeed(0x0000000000000000000000000000000000000000);
-    function setPriceFeed(address _contract) external onlyAdmin{ priceFeed = IPriceFeed(_contract); }
+    function setPriceFeed(address _contract) external onlyAdmin{ 
+        priceFeed = IPriceFeed(_contract);
+        emit PriceFeedChanged(_contract); 
+    }
 
     //Badge Manager to get NFT holder attributes:
     IMuchoBadgeManager private badgeManager = IMuchoBadgeManager(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
-    function setBadgeManager(address _contract) external onlyAdmin { badgeManager = IMuchoBadgeManager(_contract); }
+    function setBadgeManager(address _contract) external onlyAdmin { 
+        badgeManager = IMuchoBadgeManager(_contract);
+        emit BadgeManagerChanged(_contract);
+    }
 
     //Address where we send profits from fees:
     address public earningsAddress;
-    function setEarningsAddress(address _addr) external onlyAdmin{ earningsAddress = _addr; }
+    function setEarningsAddress(address _addr) external onlyAdmin{ 
+        earningsAddress = _addr; 
+        emit EarningsAddressChanged(_addr);
+    }
 
 
     /*--------------------------PARAMETERS--------------------------------------*/
@@ -56,6 +64,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     uint256 public aprUpdatePeriod = 1 days;
     function setAprUpdatePeriod(uint256 _seconds) external onlyAdmin{ 
         aprUpdatePeriod = _seconds; 
+        emit AprUpdatePeriodChanged(_seconds);
     }
 
     //Fee (basic points) we will charge for swapping between mucho tokens:
@@ -63,6 +72,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function setSwapMuchoTokensFee(uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 1000 && _percent >= 0, "not in range");
         bpSwapMuchoTokensFee = _percent;
+        emit SwapMuchoTokensFeeChanged(_percent);
     }
 
     //Special fee with discount for swapping, for NFT holders. Each plan can have its own fee, otherwise will use the default one for no-NFT holders.
@@ -71,10 +81,12 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(_percent < 1000 && _percent >= 0, "not in range");
         require(_planId > 0, "not valid plan");
         bpSwapMuchoTokensFeeForBadgeHolders[_planId] = MuchoBadgeSpecialFee({fee : _percent, exists: true});
+        emit SwapMuchoTokensFeeForPlanChanged(_planId, _percent);
     }
     function removeSwapMuchoTokensFeeForPlan(uint256 _planId) external onlyTraderOrAdmin {
         require(_planId > 0, "not valid plan");
         bpSwapMuchoTokensFeeForBadgeHolders[_planId].exists = false;
+        emit SwapMuchoTokensFeeForPlanRemoved(_planId);
     }
 
     /*---------------------------------MODIFIERS and CHECKERS---------------------------------*/
@@ -112,13 +124,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             withdrawFee: 0
         }));
 
-        int256[30] memory apr;
-        aprInfo.push(AprInfo({
-            lastTotalStaked:0,
-            lastStakedFromDeposits:0,
-            lastAprUpdate: block.timestamp, 
-            apr: apr
-        }));
+        emit VaultAdded(_depositToken, _muchoToken);
 
         return uint8(vaultInfo.length.sub(1));
     }
@@ -127,17 +133,23 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function setDepositFee(uint8 _vaultId, uint16 _fee) external onlyTraderOrAdmin validVault(_vaultId){
         require(_fee < 500, "MuchoVault: Max deposit fee exceeded");
         vaultInfo[_vaultId].depositFee = _fee;
+        emit DepositFeeChanged(_vaultId, _fee);
     }
 
     //Sets a withdraw fee for a vault:
     function setWithdrawFee(uint8 _vaultId, uint16 _fee) external onlyTraderOrAdmin validVault(_vaultId){
         require(_fee < 100, "MuchoVault: Max withdraw fee exceeded");
         vaultInfo[_vaultId].withdrawFee = _fee;
+        emit WithdrawFeeChanged(_vaultId, _fee);
     }
 
     //Opens or closes a vault for deposits:
     function setOpenVault(uint8 _vaultId, bool open) public onlyTraderOrAdmin validVault(_vaultId) {
         vaultInfo[_vaultId].stakable = open;
+        if(open)
+            emit VaultOpen(_vaultId);
+        else
+            emit VaultClose(_vaultId);
     }
 
     //Opens or closes ALL vaults for deposits:
@@ -148,17 +160,15 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     }
 
     // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
-    function updateVault(uint256 _vaultId) public onlyTraderOrAdmin validVault(_vaultId)  {
+    function updateVault(uint8 _vaultId) public onlyTraderOrAdmin validVault(_vaultId)  {
         uint256 diffTime = block.timestamp.sub(vaultInfo[_vaultId].lastUpdate);
 
         //Update total staked
         vaultInfo[_vaultId].lastUpdate = block.timestamp;
+        uint256 beforeStaked = vaultInfo[_vaultId].totalStaked;
         vaultInfo[_vaultId].totalStaked = muchoHub.getTotalStaked(address(vaultInfo[_vaultId].depositToken));
 
-        //If it's time, update apr
-        if(diffTime >= aprUpdatePeriod){
-            aprInfo[_vaultId].updateApr(vaultInfo[_vaultId].totalStaked, vaultInfo[_vaultId].stakedFromDeposits);
-        }
+        emit VaultUpdated(_vaultId, beforeStaked, vaultInfo[_vaultId].totalStaked);
     }
 
     // Updates all vaults:
@@ -179,11 +189,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     //Gets the number of tokens user will get from a mucho swap:
     function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view
                      validVault(_sourceVaultId) validVault(_destVaultId) returns(uint256) {
-        console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
+        //console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
         require(_amountSourceMToken > 0, "MuchoVaultV2.swapMuchoToken: Insufficent amount");
 
         uint256 ownerAmount = getSwapFee(msg.sender).mul(_amountSourceMToken).div(10000);
-        console.log("    SOL - ownerAmount", ownerAmount);
+        //console.log("    SOL - ownerAmount", ownerAmount);
         uint256 destOutAmount = 
                     getDestinationAmountMuchoTokenExchange(_sourceVaultId, _destVaultId, _amountSourceMToken, ownerAmount);
 
@@ -235,6 +245,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         dMToken.mint(msg.sender, destOutAmount);
 
         sMToken.burn(msg.sender, _amountSourceMToken);
+
+        emit Swapped(msg.sender, _sourceVaultId, _amountSourceMToken, _destVaultId, _amountOutExpected, destOutAmount, sourceOwnerAmount);
         //console.log("    SOL - Burnt", _amountSourceMToken);
     }
 
@@ -278,6 +290,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.add(amountAfterFee);
 
         muchoHub.depositFrom(msg.sender, address(dToken), _amount);
+
+        emit Deposited(msg.sender, _vaultId, _amount);
     }
 
     //Withdraws from a vault. The user should have muschoTokens that will be burnt
@@ -305,6 +319,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
 
         muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut);
+
+        emit Withdrawn(msg.sender, _vaultId, amountOut, _share);
     }
 
 
@@ -381,11 +397,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         return vaultInfo[_vaultId];
     }
     
-    //Gets vault's last periods aprs:
-    function getLastPeriodsApr(uint8 _vaultId) external view validVault(_vaultId) returns(int256[30] memory){
-        return aprInfo[_vaultId].apr;
-    }
-    
 
     /*-----------------------------------SWAP MUCHOTOKENS--------------------------------------*/
 
@@ -432,21 +443,21 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         uint256 decimalsDest = vaultInfo[_destVaultId].depositToken.decimals();
         uint256 decimalsSource = vaultInfo[_sourceVaultId].depositToken.decimals();
 
-        console.log("    SOL - prices", sourcePrice, destPrice);
-        console.log("    SOL - decimals", decimalsSource, decimalsDest);
+        //console.log("    SOL - prices", sourcePrice, destPrice);
+        //console.log("    SOL - decimals", decimalsSource, decimalsDest);
 
         //Subtract owner fee
         if(_ownerFeeAmount > 0){
             _amountSourceMToken = _amountSourceMToken.sub(_ownerFeeAmount);
         }
 
-        console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
+        //console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
 
         uint256 amountTargetForUser = 0;
         {
-            console.log("    SOL - totalStaked", vaultInfo[_sourceVaultId].totalStaked);
-            console.log("    SOL - sourcePrice", sourcePrice);
-            console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
+            //console.log("    SOL - totalStaked", vaultInfo[_sourceVaultId].totalStaked);
+            //console.log("    SOL - sourcePrice", sourcePrice);
+            //console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
             amountTargetForUser = _amountSourceMToken
                                         .mul(vaultInfo[_sourceVaultId].totalStaked)
                                         .mul(sourcePrice)
@@ -454,11 +465,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
         //decimals handling
         if(decimalsDest > decimalsSource){
-            console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
+            //console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
             amountTargetForUser = amountTargetForUser.mul(10**(decimalsDest - decimalsSource));
         }
         else if(decimalsDest < decimalsSource){
-            console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
+            //console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
             amountTargetForUser = amountTargetForUser.div(10**(decimalsSource - decimalsDest));
         }
 

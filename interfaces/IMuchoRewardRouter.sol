@@ -20,6 +20,13 @@ Operaciones de configuración ó upgrade (protocolOwner):
 */
 
 interface IMuchoRewardRouter{
+    event UserAdded(address user);
+    event UserRemoved(address user);
+    event PlanAdded(uint256 planId, uint multiplier);
+    event PlanRemoved(uint256 planId);
+    event MultiplierChanged(uint256 planId, uint multiplier);
+    event RewardsDeposited(address token, uint256 amount);
+    event Withdrawn(address token, uint256 amount);
     
     //Checks if a user exists and adds it to the list
     function addUserIfNotExists(address _user) external;

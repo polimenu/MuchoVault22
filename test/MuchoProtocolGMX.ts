@@ -776,20 +776,6 @@ describe("MuchoProtocolGMXTest", async function () {
 
       //TRADER OR ADMIN
       const ONLY_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for trader or admin";
-      /*
-      function (uint256 _seconds) external onlyTraderOrAdmin{}
-      function (uint256 _slippage) external onlyTraderOrAdmin{}
-      function (uint256 _percent) external onlyTraderOrAdmin{}
-      function (uint256 _percent) external onlyTraderOrAdmin{}
-      function (uint256 _percent) external onlyTraderOrAdmin{}
-      function (uint256 _mw) external onlyTraderOrAdmin{}
-      function (bool _manual) external onlyTraderOrAdmin{}
-      function () public onlyTraderOrAdmin{}
-      function (address _token, uint256 _percent) external onlyTraderOrAdmin{}
-      function () external onlyTraderOrAdmin{}
-      function (RewardSplit calldata _split) external onlyTraderOrAdmin{} 
-      function (IMuchoProtocol _target) external onlyTraderOrAdmin{}*/
-
       await expect(mMuchoGMX.connect(users.user).updateClaimEsGMX(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).updateClaimEsGMX(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 

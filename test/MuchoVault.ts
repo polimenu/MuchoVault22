@@ -5,7 +5,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { MuchoHubMock, PriceFeedMock } from "../typechain-types";
 import { BigNumber } from "bignumber.js";
 import { formatBytes32String } from "ethers/lib/utils";
-import { ethers as eth } from "ethers";
+import { ethers as eth, getDefaultProvider } from "ethers";
 
 
 describe("MuchoVaultTest", async function () {
@@ -295,7 +295,10 @@ describe("MuchoVaultTest", async function () {
       await token.transfer(user.address, DEPOSIT);
       await token.connect(user).approve(mHub.address, DEPOSIT);
       await mVault.setOpenAllVault(true);
-      await mVault.connect(user).deposit(0, DEPOSIT);
+      const dp = await mVault.connect(user).deposit(0, DEPOSIT);
+      const rc = await dp.wait();
+      const dpe = rc.events.find(e => e.event === 'Deposited');
+      console.log("Deposited log", dpe);
 
       const aprs = [153, 14, 27, 3141, 10000];
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
@@ -330,9 +333,73 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).to.be.closeTo(expected, expected.div(100000), "APR earned is not what expected to be (${i})");
 
         //console.log("Check apr");
-        let aprsVault: eth.BigNumber[] = await mVault.connect(user).getLastPeriodsApr(0);
-        //console.log("aprsVault", aprsVault);
-        expect(Math.round(Number(aprsVault[0]) / 100)).to.equal(aprs[i], `APR calculated by vault is not what is earned (${i})`);
+        
+
+        //Compute APR - SAVE IT FOR THE FUTURE
+        /*
+        const ifaceDeps = new ethers.utils.Interface(["event Deposited(address user, uint8 vaultId, uint256 amount)"]);
+        const ifaceWdws = new ethers.utils.Interface(["event Withdrawn(address user, uint8 vaultId, uint256 amount, uint256 mamount)"]);
+        const depLogs = await ethers.provider.getLogs({
+          address: mVault.address,
+          topics: [eth.utils.id("Deposited(address,uint8,uint256)")],
+          fromBlock: 0,
+          toBlock: "latest"
+        });
+        const wdwLogs = await ethers.provider.getLogs({
+          address: mVault.address,
+          topics: [eth.utils.id("Withdrawn(address,uint8,uint256,uint256)")],
+          fromBlock: 0,
+          toBlock: "latest"
+        });
+        console.log("DEPOSITS: ", depLogs);
+        console.log("WITHDRAWNS: ", wdwLogs);
+
+        const vaultMoves:number[][] = [];
+        for(var il in depLogs){
+          const log = depLogs[il];
+          const pLog = ifaceDeps.parseLog(log);
+          const [from, vault, amount, ts] = [...pLog.args, (await ethers.provider.getBlock(log.blockNumber)).timestamp];
+          console.log("Deposit from", from);
+          console.log("Deposit vault", vault);
+          console.log("Deposit amount", amount);
+          console.log("Deposit ts", ts);
+          vaultMoves[vault][ts] = fromBN(amount, 0);
+        }
+        for(var il in wdwLogs){
+          const log = wdwLogs[il];
+          const pLog = ifaceWdws.parseLog(log);
+          const [from, vault, amount, ts] = [pLog.args[0],
+                                              Number.parseInt(pLog.args[1]),
+                                              pLog.args[2], 
+                                              (await ethers.provider.getBlock(log.blockNumber)).timestamp];
+          console.log("Withdraw from", from);
+          console.log("Withdraw vault", vault);
+          console.log("Withdraw amount", amount);
+          console.log("Withdraw ts", ts);
+          vaultMoves[vault][ts] = -fromBN(amount, 0);
+        }
+        let lastTs = 0, lastDep = 0; let firstTs = 0; let firstDep = 0;
+        let accumVal = 0;
+        for(var im in vaultMoves[0]){
+          const m = vaultMoves[0][im];
+          if(lastDep == 0){
+            lastDep = m;
+            lastTs = im;
+            firstTs = im;
+            firstDep = m;
+          }
+          else{
+            accumVal += lastDep * (im - lastTs);
+            lastDep = lastDep + m;
+            lastTs = im;
+          }
+        }
+        const curVal = await mVault.vaultTotalStaked(0);
+        const latestTs = await time.latest();
+        accumVal += lastDep * (latestTs - lastTs);
+        const avgDep = accumVal / (latestTs - firstTs);
+        const profit = (curVal - firstDep) / avgDep;
+        */
 
         staked = newStaked;
         /*console.log("Staked", newStaked);
@@ -394,9 +461,9 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).equal(expected, `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        const aprsVault: eth.BigNumber[] = await mVault.getLastPeriodsApr(0);
+        //const aprsVault: eth.BigNumber[] = await mVault.getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
-        expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
+        //expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
         /*console.log("Staked", newStaked);
@@ -468,9 +535,9 @@ describe("MuchoVaultTest", async function () {
         expect(newStaked).to.be.closeTo(expected, Math.round(Number(expected) / 1000), `APR earned is not what expected to be (${i})`);
 
         //console.log("Check apr");
-        let aprsVault: eth.BigNumber[] = await mVault.connect(user).getLastPeriodsApr(0);
+        //let aprsVault: eth.BigNumber[] = await mVault.connect(user).getLastPeriodsApr(0);
         //console.log("aprsVault", aprsVault);
-        expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
+        //expect(Number(aprsVault[0]) / 100).to.be.closeTo(realApr, Math.abs(realApr / 1000), `APR calculated by vault is not what is earned (${i})`);
 
         staked = newStaked;
         /*console.log("Staked", newStaked);

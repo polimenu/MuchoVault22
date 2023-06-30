@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../../interfaces/IMuchoProtocol.sol";
 import "../../interfaces/IPriceFeed.sol";
 import "../../interfaces/IMuchoToken.sol";
-import "../../lib/AprInfo.sol";
 import "../MuchoRoles.sol";
 //import "hardhat/console.sol";
 //import "../../lib/UintSafe.sol";
@@ -18,12 +17,10 @@ contract MuchoProtocolMock is IMuchoProtocol {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
-    using AprLib for AprInfo;
 
     EnumerableSet.AddressSet tokenList;
     int256 apr;
     uint256 lastUpdate;
-    AprInfo aprInfo;
     IPriceFeed priceFeed;
     uint256 notInvestedBP;
     mapping(address => uint256) notInvestedAmount;
@@ -85,7 +82,6 @@ contract MuchoProtocolMock is IMuchoProtocol {
         }
         lastUpdate = block.timestamp;
         //console.log("    SOL MuchoProtocolMock - Updating APR");
-        aprInfo.updateApr(apr * (10000 - int256(notInvestedBP)) / 10000);
     }
 
     function refreshInvestment() external {
@@ -132,11 +128,6 @@ contract MuchoProtocolMock is IMuchoProtocol {
 
     function setMuchoRewardRouter(address _contract) external {}
 
-    function getLastPeriodsApr(
-        address _token
-    ) external view returns (int256[30] memory) {
-        return aprInfo.apr;
-    }
 
     function getTokenNotInvested(address _token) public view returns (uint256) {
         return notInvestedAmount[_token];
@@ -148,6 +139,17 @@ contract MuchoProtocolMock is IMuchoProtocol {
 
     function getTokenStaked(address _token) public view returns (uint256) {
         return IERC20(_token).balanceOf(address(this));
+    }
+
+    function getAllTokensStaked() public view returns (address[] memory, uint256[] memory) {
+        address[] memory tkOut = new address[](tokenList.length());
+        uint256[] memory amOut = new uint256[](tokenList.length());
+        for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            tkOut[i] = tokenList.at(i);
+            amOut[i] = getTokenStaked(tkOut[i]);
+        }
+
+        return (tkOut, amOut);
     }
 
     function getTokenUSDInvested(address _token) public view returns(uint256){

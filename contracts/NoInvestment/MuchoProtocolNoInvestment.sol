@@ -70,6 +70,17 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     function getTokenStaked(address _token) public view returns(uint256){
         return getTokenNotInvested(_token);
     }
+
+    function getAllTokensStaked() public view returns (address[] memory, uint256[] memory) {
+        address[] memory tkOut = new address[](tokenList.length());
+        uint256[] memory amOut = new uint256[](tokenList.length());
+        for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            tkOut[i] = tokenList.at(i);
+            amOut[i] = getTokenStaked(tkOut[i]);
+        }
+
+        return (tkOut, amOut);
+    }
     function getTokenInvested(address _token) public view returns(uint256){
         return getTokenStaked(_token).sub(getTokenNotInvested(_token));
     }

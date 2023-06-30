@@ -31,9 +31,9 @@ interface IMuchoProtocol{
     event WithdrawnInvested(address token, address to, uint256 amount);
     event WithdrawnNotInvested(address token, address to, uint256 amount);
     event DepositNotified(address token, uint256 amount);
-    event RewardPercentagesChanged(RewardSplit split);
-    event CompoundProtocolChanged(IMuchoProtocol target);
-    event MuchoRewardRouterChanged(address router);
+    event RewardPercentagesChanged(RewardSplit splitBefore, RewardSplit splitAfter);
+    event CompoundProtocolChanged(IMuchoProtocol oldProtocol, IMuchoProtocol newProtocol);
+    event MuchoRewardRouterChanged(address oldRouter, address newRouter);
 
     function protocolName() external returns(string memory);
     function protocolDescription() external returns(string memory);
@@ -49,7 +49,7 @@ interface IMuchoProtocol{
     function setCompoundProtocol(IMuchoProtocol _target) external;
     function setMuchoRewardRouter(address _contract) external;
 
-    function getLastPeriodsApr(address _token) external view returns(int256[30] memory);
+    function getAllTokensStaked() external view returns(address[] memory, uint256[] memory);
     function getTokenNotInvested(address _token) external view returns(uint256);
     function getTokenInvested(address _token) external view returns(uint256);
     function getTokenStaked(address _token) external view returns(uint256);

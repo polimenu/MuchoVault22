@@ -47,16 +47,15 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
     function addProtocol(address _contract) external onlyAdmin {
         protocolList.add(_contract);
+        emit ProtocolAdded(_contract);
     }
 
     function removeProtocol(address _contract) external onlyAdmin {
         protocolList.remove(_contract);
+        emit ProtocolRemoved(_contract);
     }
 
-    function setDefaultInvestment(
-        address _token,
-        InvestmentPart[] memory _partitionList
-    ) external onlyTraderOrAdmin checkPartitionList(_partitionList) {
+    function setDefaultInvestment(address _token, InvestmentPart[] memory _partitionList) external onlyTraderOrAdmin checkPartitionList(_partitionList) {
         tokenDefaultInvestment[_token].defined = true;
         for (uint256 i = 0; i < _partitionList.length; i = i.add(1)) {
             tokenDefaultInvestment[_token].parts.push(
@@ -66,14 +65,10 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
                 })
             );
         }
+        emit DefaultInvestmentChanged(_token, _partitionList);
     }
 
-    function moveInvestment(
-        address _token,
-        uint256 _amount,
-        address _protocolSource,
-        address _protocolDestination
-    )
+    function moveInvestment(address _token, uint256 _amount, address _protocolSource, address _protocolDestination)
         external
         onlyTraderOrAdmin
         nonReentrant
@@ -84,13 +79,10 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         console.log("    SOL MuchoHub - Staked source", protSource.getTotalStaked(_token));*/
         require(protSource.getTokenStaked(_token) >= _amount, "MuchoHub: Cannot move more than staked");
         protSource.withdrawAndSend(_token, _amount, _protocolDestination);
+        emit InvestmentMoved(_token, _amount, _protocolSource, _protocolDestination);
     }
 
-    function depositFrom(
-        address _investor,
-        address _token,
-        uint256 _amount
-    ) external onlyOwner nonReentrant {
+    function depositFrom(address _investor, address _token, uint256 _amount) external onlyOwner nonReentrant {
         IERC20 tk = IERC20(_token);
         require(
             tk.allowance(_investor, address(this)) >= _amount,
@@ -101,11 +93,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             "MuchoHub: no protocol defined for the token"
         );
 
-        for (
-            uint256 i = 0;
-            i < tokenDefaultInvestment[_token].parts.length;
-            i = i.add(1)
-        ) {
+        for (uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i = i.add(1)) {
             InvestmentPart memory part = tokenDefaultInvestment[_token].parts[
                 i
             ];
@@ -117,13 +105,11 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             IMuchoProtocol(part.protocol).notifyDeposit(_token, amountProtocol);
             IMuchoProtocol(part.protocol).refreshInvestment();
         }
+
+        emit Deposited(_investor, _token, _amount);
     }
 
-    function withdrawFrom(
-        address _investor,
-        address _token,
-        uint256 _amount
-    ) external onlyOwner nonReentrant {
+    function withdrawFrom(address _investor, address _token, uint256 _amount) external onlyOwner nonReentrant {
         require(_amount < getTotalStaked(_token), "Cannot withdraw more than total staked");
         uint256 amountPending = _amount;
 
@@ -138,9 +124,11 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
             //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
-            if (amountPending == 0)
-                //Already filled amount
+            //Already filled amount
+            if (amountPending == 0){
+                emit Withdrawn(_investor, _token, _amount);
                 return;
+            }
         }
 
         //console.log("    SOL MuchoHub - Continue with invested, pending: ", amountPending);
@@ -160,9 +148,11 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
             //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
-            if (amountPending == 0)
-                //Already filled amount
+            //Already filled amount
+            if (amountPending == 0){
+                emit Withdrawn(_investor, _token, _amount);
                 return;
+            }
         }
 
         //IF there is a rest (from dividing rounding), fill it easy
@@ -178,18 +168,38 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
                 IMuchoProtocol(protocolList.at(i)).withdrawAndSend(_token, amountToWithdraw, _investor);
                 //console.log("    SOL MuchoHub - protocol done, pending: ", amountPending);
 
-                if (amountPending == 0)
-                    //Already filled amount
+                //Already filled amount
+                if (amountPending == 0){
+                    emit Withdrawn(_investor, _token, _amount);
                     return;
+                }
             }
         }
+
 
         revert("Could not fill needed amount");
     }
 
     function refreshInvestment(address _protocol) public onlyOwnerTraderOrAdmin activeProtocol(_protocol) {
-        IMuchoProtocol(_protocol).cycleRewards();
-        IMuchoProtocol(_protocol).refreshInvestment();
+        IMuchoProtocol p = IMuchoProtocol(_protocol);
+        (address[] memory tokens, uint256[] memory amounts) = p.getAllTokensStaked();
+        p.cycleRewards();
+        p.refreshInvestment();
+        (address[] memory tokensNew, uint256[] memory amountsNew) = p.getAllTokensStaked();
+
+        for(uint16 i = 0; i < tokens.length; i++){
+            bool found = false;
+            for(uint16 j = 0; j < tokensNew.length; j++){
+                if(tokens[i] == tokens[j]){
+                    emit InvestmentRefreshed(_protocol, tokens[i], amounts[i], amountsNew[i]);
+                    found = true;
+                    break;
+                }
+            }
+            if(!found){
+                revert("Cannot find old token in new token list");
+            }
+        }
     }
 
     function refreshAllInvestments() external onlyOwnerTraderOrAdmin {
@@ -208,9 +218,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         return list;
     }
 
-    function getTotalNotInvested(
-        address _token
-    ) external view returns (uint256) {
+    function getTotalNotInvested(address _token) external view returns (uint256) {
         uint256 total = 0;
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
             total = total.add(
@@ -230,9 +238,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         return total;
     }
 
-    function getTokenDefaults(
-        address _token
-    ) external view returns (InvestmentPart[] memory) {
+    function getTokenDefaults(address _token) external view returns (InvestmentPart[] memory) {
         require(
             tokenDefaultInvestment[_token].defined,
             "MuchoHub: Default investment not defined for token"
@@ -240,9 +246,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         return tokenDefaultInvestment[_token].parts;
     }
 
-    function getTotalInvestedAndList(
-        address _token
-    ) internal view returns (uint256, uint256[] memory) {
+    function getTotalInvestedAndList(address _token) internal view returns (uint256, uint256[] memory) {
         uint256 total = 0;
         uint256[] memory amounts = new uint256[](protocolList.length());
         for (uint256 i = 0; i < protocolList.length(); i = i.add(1)) {
@@ -261,9 +265,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         return total;
     }
 
-    function getCurrentInvestment(
-        address _token
-    ) external view returns (InvestmentAmountPartition memory) {
+    function getCurrentInvestment(address _token) external view returns (InvestmentAmountPartition memory) {
         InvestmentAmountPart[] memory parts = new InvestmentAmountPart[](
             protocolList.length()
         );

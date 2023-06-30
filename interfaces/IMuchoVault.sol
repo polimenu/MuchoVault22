@@ -22,12 +22,28 @@ Operaciones de upgrade (owner): cambiar direcciones de los contratos a los que s
 */
 
 interface IMuchoVault{
-    function getVaultInfo(uint8 _vaultId) external returns(VaultInfo memory);
+    event Deposited(address user, uint8 vaultId, uint256 amount);
+    event Withdrawn(address user, uint8 vaultId, uint256 amount, uint256 mamount);
+    event Swapped(address user, uint8 sourceVaultId, uint256 amountSourceMToken, uint8 destVaultId, uint256 amountOutExpected, uint256 amountOutActual, uint256 amountMTokenOwner);
+    
+    event VaultAdded(IERC20Metadata depositToken, IMuchoToken muchoToken);
+    event VaultOpen(uint8 vaultId);
+    event VaultClose(uint8 vaultId);
+    event DepositFeeChanged(uint8 vaultId, uint16 fee);
+    event WithdrawFeeChanged(uint8 vaultId, uint16 fee);
+    event VaultUpdated(uint8 vaultId, uint256 amountBefore, uint256 amountAfter);
+    event MuchoHubChanged(address newContract);
+    event PriceFeedChanged(address newContract);
+    event BadgeManagerChanged(address newContract);
+    event EarningsAddressChanged(address newAddr);
+    event AprUpdatePeriodChanged(uint256 secs);
+    event SwapMuchoTokensFeeChanged(uint256 percent);
+    event SwapMuchoTokensFeeForPlanChanged(uint256 planId, uint256 percent);
+    event SwapMuchoTokensFeeForPlanRemoved(uint256 planId);
 
     function deposit(uint8 _vaultId, uint256 _amount) external;
     function withdraw(uint8 _vaultId, uint256 _share) external;
     
-    function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external returns(uint256);
     function swap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId, uint256 _amountOutExpected, uint16 _maxSlippage) external;
 
     function addVault(IERC20Metadata _depositToken, IMuchoToken _muchoToken) external returns(uint8);
@@ -36,11 +52,22 @@ interface IMuchoVault{
     function setDepositFee(uint8 _vaultId, uint16 _fee) external;
     function setWithdrawFee(uint8 _vaultId, uint16 _fee) external;
 
-    function updateVault(uint256 _vaultId) external;
+    function updateVault(uint8 _vaultId) external;
     function updateAllVaults() external;
     function refreshAndUpdateAllVaults() external;
 
     function setMuchoHub(address _newContract) external;
+    function setPriceFeed(address _contract) external;
+    function setBadgeManager(address _contract) external;
+    function setEarningsAddress(address _addr) external;
+
+    function setAprUpdatePeriod(uint256 _seconds) external;
+    function setSwapMuchoTokensFee(uint256 _percent) external;
+    function setSwapMuchoTokensFeeForPlan(uint256 _planId, uint256 _percent) external;
+    function removeSwapMuchoTokensFeeForPlan(uint256 _planId) external;
+
+    function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view returns(uint256);
+    function getVaultInfo(uint8 _vaultId) external view returns(VaultInfo memory);
 
     function vaultTotalUSD(uint8 _vaultId) external view returns (uint256);
     function allVaultsTotalUSD() external view returns (uint256);
@@ -48,5 +75,4 @@ interface IMuchoVault{
     function investorVaultTotalUSD(uint8 _vaultId, address _user) external view returns (uint256);
     function investorTotalUSD(address _user) external view returns (uint256);
     function muchoTokenToDepositTokenPrice(uint8 _vaultId) external view returns (uint256);
-    function getLastPeriodsApr(uint8 _vaultId) external view returns(int256[30] memory);
 }
