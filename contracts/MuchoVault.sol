@@ -222,11 +222,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     //Gets the number of tokens user will get from a mucho swap:
     function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view
                      validVault(_sourceVaultId) validVault(_destVaultId) returns(uint256) {
-        //console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
+        console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
         require(_amountSourceMToken > 0, "MuchoVaultV2.swapMuchoToken: Insufficent amount");
 
         uint256 ownerAmount = getSwapFee(msg.sender).mul(_amountSourceMToken).div(10000);
-        //console.log("    SOL - ownerAmount", ownerAmount);
+        console.log("    SOL - ownerAmount", ownerAmount);
         uint256 destOutAmount = 
                     getDestinationAmountMuchoTokenExchange(_sourceVaultId, _destVaultId, _amountSourceMToken, ownerAmount);
 
@@ -290,9 +290,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         IERC20 dToken = vaultInfo[_vaultId].depositToken;
 
-        /*console.log(block.number , "SOL - DEPOSITING");
-        console.log(block.number , "Sender and balance", msg.sender, dToken.balanceOf(msg.sender));
-        console.log(block.number , "amount", _amount);*/
+        console.log("    SOL - DEPOSITING");
+        console.log("    SOL - Sender and balance", msg.sender, dToken.balanceOf(msg.sender));
+        console.log("    SOL - amount", _amount);
         
         require(_amount != 0, "MuchoVaultV2.deposit: Insufficent amount");
         require(msg.sender != address(0), "MuchoVaultV2.deposit: address is not valid");
@@ -309,6 +309,10 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         uint256 ownerDepositFee = _amount.mul(vaultInfo[_vaultId].depositFee).div(10000);
         uint256 amountAfterFee = _amount.sub(ownerDepositFee);
 
+        console.log("    SOL - depositFee", vaultInfo[_vaultId].depositFee);
+        console.log("    SOL - ownerDepositFee", ownerDepositFee);
+        console.log("    SOL - amountAfterFee", amountAfterFee);
+
         // If no muchoToken exists, mint it 1:1 to the amount put in
         if (totalShares == 0 || totalStakedTokens == 0) {
             mToken.mint(msg.sender, amountAfterFee);
@@ -322,8 +326,13 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo[_vaultId].totalStaked = vaultInfo[_vaultId].totalStaked.add(amountAfterFee);
         vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.add(amountAfterFee);
 
+        console.log("    SOL - TOTAL STAKED AFTER DEP 0", vaultInfo[_vaultId].totalStaked);
+        console.log("    SOL - EXECUTING DEPOSIT FROM IN HUB");
         muchoHub.depositFrom(msg.sender, address(dToken), amountAfterFee, ownerDepositFee, earningsAddress);
+        console.log("    SOL - TOTAL STAKED AFTER DEP 1", vaultInfo[_vaultId].totalStaked);
+        console.log("    SOL - EXECUTING UPDATE VAULT");
         _updateVault(_vaultId);
+        console.log("    SOL - TOTAL STAKED AFTER DEP 2", vaultInfo[_vaultId].totalStaked);
 
         emit Deposited(msg.sender, _vaultId, _amount, vaultInfo[_vaultId].totalStaked);
     }
@@ -496,21 +505,21 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         uint256 decimalsDest = vaultInfo[_destVaultId].depositToken.decimals();
         uint256 decimalsSource = vaultInfo[_sourceVaultId].depositToken.decimals();
 
-        //console.log("    SOL - prices", sourcePrice, destPrice);
-        //console.log("    SOL - decimals", decimalsSource, decimalsDest);
+        console.log("    SOL - prices", sourcePrice, destPrice);
+        console.log("    SOL - decimals", decimalsSource, decimalsDest);
 
         //Subtract owner fee
         if(_ownerFeeAmount > 0){
             _amountSourceMToken = _amountSourceMToken.sub(_ownerFeeAmount);
         }
 
-        //console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
+        console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
 
         uint256 amountTargetForUser = 0;
         {
-            //console.log("    SOL - totalStaked", vaultInfo[_sourceVaultId].totalStaked);
-            //console.log("    SOL - sourcePrice", sourcePrice);
-            //console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
+            console.log("    SOL - source totalStaked", vaultInfo[_sourceVaultId].totalStaked);
+            console.log("    SOL - source Price", sourcePrice);
+            console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
             amountTargetForUser = _amountSourceMToken
                                         .mul(vaultInfo[_sourceVaultId].totalStaked)
                                         .mul(sourcePrice)
@@ -518,14 +527,16 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
         //decimals handling
         if(decimalsDest > decimalsSource){
-            //console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
+            console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
             amountTargetForUser = amountTargetForUser.mul(10**(decimalsDest - decimalsSource));
         }
         else if(decimalsDest < decimalsSource){
-            //console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
+            console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
             amountTargetForUser = amountTargetForUser.div(10**(decimalsSource - decimalsDest));
         }
 
+        console.log("    SOL - source totalSupply", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
+        console.log("    SOL - dest totalStaked", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
         amountTargetForUser = amountTargetForUser.div(vaultInfo[_sourceVaultId].muchoToken.totalSupply())
                                     .div(vaultInfo[_destVaultId].totalStaked)
                                     .div(destPrice);

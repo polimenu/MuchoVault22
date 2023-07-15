@@ -65,10 +65,16 @@ contract GLPVaultMock is IGLPVault {
         return IERC20(_token).balanceOf(address(this)).mul(priceFeed.getPrice(_token)).div(10**(30-18+decimals));
     }
 
+    uint256 mintFee = 25;
+    function setMintFee(uint256 _fee) external{ mintFee = _fee; }
+
+    uint256 burnFee = 30;
+    function setBurnFee(uint256 _fee) external{ burnFee = _fee; }
+
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, uint256 _taxBasisPoints, bool _increment) external view returns (uint256){
         //mint fee
-        if(_increment) return 25;
+        if(_increment) return mintFee;
         //burn fee
-        return 30;
+        return burnFee;
     }
 }

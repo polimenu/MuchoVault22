@@ -513,7 +513,7 @@ describe("MuchoVaultCompleteTest", async function () {
     it("Swap with an NFT, using the right swap fee", async function () {
       const SECONDS_PER_DAY = 24 * 3600;
 
-      const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge } = await loadFixture(deployMuchoVault);
+      const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge, mGmx } = await loadFixture(deployMuchoVault);
 
       //Add user to NFT plan 3 and 4
       await mBadge.addUserToPlan(user.address, 3);
@@ -525,15 +525,37 @@ describe("MuchoVaultCompleteTest", async function () {
       await mVault.setSwapMuchoTokensFeeForPlan(3, FEE1);
       await mVault.setSwapMuchoTokensFeeForPlan(4, FEE_MIN);
 
-      //Transfer tokens to user, approve to be spent by the HUB, and deposit them:
+      //set glp mint fees to 0
+      const glpVaultAddr = await mGmx.glpVault();
+      const glpVaultMock = await ethers.getContractAt("GLPVaultMock", glpVaultAddr);
+      await glpVaultMock.setMintFee(0);
+      await glpVaultMock.setBurnFee(0);
+
+      //Manual weights to avoid rebalance
+      await mGmx.setManualModeWeights(true);
       await mVault.setOpenAllVault(true);
+
+      //Calc total usd to calc weight
+      let totalAmoundUSD = 0;
       for (var j = 0; j < tk.length; j++) {
         const ct = await ethers.getContractAt("ERC20", tk[j].t);
         const am = await ct.balanceOf(admin.address);
+        const pr = await pFeed.getPrice(ct.address);
+        totalAmoundUSD += (fromBN(am, await ct.decimals()) * fromBN(pr, 30));
+      };
+
+      //Transfer tokens to user, approve to be spent by the HUB, and deposit them:
+      for (var j = 0; j < tk.length; j++) {
+        const ct = await ethers.getContractAt("ERC20", tk[j].t);
+        const am = await ct.balanceOf(admin.address);
+        const pr = await pFeed.getPrice(ct.address);
+        const weight = Math.round((fromBN(am, await ct.decimals()) * fromBN(pr, 30)) * 10000 / totalAmoundUSD);
+        await mGmx.setWeight(tk[j].t, weight);
         await ct.transfer(user.address, am);
         await ct.connect(user).approve(mHub.address, am);
         await mVault.connect(user).deposit(j, am);
       }
+
 
       //Expected exchange:
       const amountSource = 1.26346;
