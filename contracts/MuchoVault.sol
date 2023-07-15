@@ -117,6 +117,12 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         emit SwapMuchoTokensFeeForPlanRemoved(_planId);
     }
 
+    //Maximum amount a user with NFT Plan can invest
+    mapping(uint256 => mapping(uint256 => uint256)) maxDepositUserPlan;
+    function setMaxDepositUserForPlan(uint256 _vaultId, uint256 _planId, uint256 _amount) external onlyTraderOrAdmin{
+        maxDepositUserPlan[_vaultId][_planId] = _amount;
+    }
+
     /*---------------------------------MODIFIERS and CHECKERS---------------------------------*/
     //Validates a vault ID
     modifier validVault(uint _id){
@@ -149,7 +155,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             lastUpdate: block.timestamp, 
             stakable: false,
             depositFee: 0,
-            withdrawFee: 0
+            withdrawFee: 0,
+            maxDepositUser: 10**30
         }));
 
         emit VaultAdded(_depositToken, _muchoToken);
@@ -415,8 +422,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IMuchoBadgeManager.Plan[] memory plans = badgeManager.activePlansForUser(_user);
         for(uint i = 0; i < plans.length; i = i.add(1)){
             uint256 id = plans[i].id;
-            if(vaultInfo[_vaultId].maxDepositUserPlan[id] > maxAllowed)
-                maxAllowed = vaultInfo[_vaultId].maxDepositUserPlan[id];
+            if(maxDepositUserPlan[_vaultId][id] > maxAllowed)
+                maxAllowed = maxDepositUserPlan[_vaultId][id];
         }
 
         return maxAllowed;

@@ -18,5 +18,4 @@ struct VaultInfo {
         uint16 withdrawFee;
 
         uint256 maxDepositUser; //Maximum amount a user without NFT can invest
-        mapping(uint256 => uint256) maxDepositUserPlan; //Maximum amount a user with NFT Plan can invest
 }
