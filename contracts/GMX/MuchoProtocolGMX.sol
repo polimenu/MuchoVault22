@@ -341,13 +341,21 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     
     function getDepositFee(address _token, uint256 _amount) external view returns(uint256){
-        //ToDo
-        return 0;
+        uint256 mbFee = glpVault.mintBurnFeeBasisPoints();
+        uint256 taxFee = glpVault.taxBasisPoints();
+        uint256 price = priceFeed.getPrice(_token);
+        uint8 dec = IERC20Metadata(_token).decimals();
+        uint256 usdgDelta = _amount.mul(10**(30+18-dec)).div(price);
+        return glpVault.getFeeBasisPoints(_token, usdgDelta, mbFee, taxFee, true);
     }
 
     function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256){
-        //ToDo
-        return 0;
+        uint256 mbFee = glpVault.mintBurnFeeBasisPoints();
+        uint256 taxFee = glpVault.taxBasisPoints();
+        uint256 price = priceFeed.getPrice(_token);
+        uint8 dec = IERC20Metadata(_token).decimals();
+        uint256 usdgDelta = _amount.mul(10**(30+18-dec)).div(price);
+        return glpVault.getFeeBasisPoints(_token, usdgDelta, mbFee, taxFee, false);
     }
 
     //Amount of token that is invested
