@@ -18,4 +18,5 @@ struct VaultInfo {
         uint16 withdrawFee;
 
         uint256 maxDepositUser; //Maximum amount a user without NFT can invest
+        uint256 maxCap; //Maximum total deposit (0 = no limit)
 }

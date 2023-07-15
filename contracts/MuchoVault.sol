@@ -156,12 +156,18 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             stakable: false,
             depositFee: 0,
             withdrawFee: 0,
-            maxDepositUser: 10**30
+            maxDepositUser: 10**30,
+            maxCap: 0
         }));
 
         emit VaultAdded(_depositToken, _muchoToken);
 
         return uint8(vaultInfo.length.sub(1));
+    }
+
+    //Sets maximum amount to deposit:
+    function setMaxCap(uint8 _vaultId, uint256 _max) external onlyTraderOrAdmin validVault(_vaultId){
+        vaultInfo[_vaultId].maxCap = _max;
     }
 
     //Sets maximum amount to deposit for a user:
@@ -301,8 +307,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         IERC20 dToken = vaultInfo[_vaultId].depositToken;
 
-        uint256 wantedDeposit = _amount.add(investorVaultTotalStaked(_vaultId, msg.sender));
-        require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender), "MuchoVaultV2.deposit: depositing more than max allowed per user");
 
         /*console.log("    SOL - DEPOSITING");
         console.log("    SOL - Sender and balance", msg.sender, dToken.balanceOf(msg.sender));
@@ -312,6 +316,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(msg.sender != address(0), "MuchoVaultV2.deposit: address is not valid");
         require(_amount <= dToken.balanceOf(msg.sender), "MuchoVaultV2.deposit: balance too low" );
         require(vaultInfo[_vaultId].stakable, "MuchoVaultV2.deposit: not stakable");
+        require(vaultInfo[_vaultId].maxCap == 0 || vaultInfo[_vaultId].maxCap >= _amount.add(vaultInfo[_vaultId].totalStaked), "MuchoVaultV2.deposit: depositing more than max allowed in total");
+        uint256 wantedDeposit = _amount.add(investorVaultTotalStaked(_vaultId, msg.sender));
+        require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender), "MuchoVaultV2.deposit: depositing more than max allowed per user");
      
         // Gets the amount of deposit token locked in the contract
         uint256 totalStakedTokens = vaultInfo[_vaultId].totalStaked;

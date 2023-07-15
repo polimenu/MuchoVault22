@@ -140,6 +140,20 @@ describe("MuchoVaultTest", async function () {
       await expect(mVault.connect(admin).deposit(0, 1000)).to.be.revertedWith("MuchoVaultV2.deposit: not stakable");
     });
 
+    it("Should fail when depositing more than max cap", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge} = await loadFixture(deployMuchoVault);
+      await mVault.setOpenVault(0, true);
+
+      const ct = await ethers.getContractAt("MuchoToken", tk[0].t);
+      await ct.mint(admin.address, toBN(3000, 6));
+      await ct.approve(mHub.address, toBN(3000, 6));
+
+      await mVault.setMaxCap(0, toBN(1200, 6));
+      await mVault.connect(admin).deposit(0, toBN(1000, 6));
+
+      await expect(mVault.connect(admin).deposit(0, toBN(1000, 6))).to.be.revertedWith("MuchoVaultV2.deposit: depositing more than max allowed in total");
+    });
+
     it("Should fail when depositing more than allowed", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge} = await loadFixture(deployMuchoVault);
       await mVault.setOpenVault(0, true);
