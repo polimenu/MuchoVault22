@@ -113,7 +113,7 @@ describe("MuchoHubTest", async function () {
       const AMOUNT = 1000 * 10 ** 6;
 
       await token.connect(users.user).approve(hub.address, AMOUNT);
-      await expect(hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT)).revertedWith("MuchoHub: no protocol defined for the token");
+      await expect(hub.connect(users.owner).depositFrom(users.user.address, tokens.usdc.address, AMOUNT, 0, users.admin.address)).revertedWith("MuchoHub: no protocol defined for the token");
     });
 
     it("Should fail when fixing default investment with less than 100% for a token", async function () {
@@ -166,7 +166,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
 
       //Compare user balance and HUB total staked after depositing
       const newBalance = await token.connect(users.user).balanceOf(users.user.address);
@@ -222,7 +222,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
 
       //Compare user balance and HUB total staked after depositing
       const newBalance = await token.connect(users.user).balanceOf(users.user.address);
@@ -288,7 +288,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
       const timeDeposit = await time.latest();
 
       //Wait and refresh with apr
@@ -329,7 +329,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
       const timeDeposit = await time.latest();
 
       //Wait and refresh with apr
@@ -343,7 +343,7 @@ describe("MuchoHubTest", async function () {
       //withdraw less than not invested, should only take from the not invested liquidity
       const amountWithdraw = notInvestedTotalAfterApr.div(10);
       const balanceBeforeWithdraw = await token.balanceOf(users.user.address);
-      await hub.connect(users.owner).withdrawFrom(users.user.address, token.address, amountWithdraw);
+      await hub.connect(users.owner).withdrawFrom(users.user.address, token.address, amountWithdraw, 0, users.admin.address);
       const balanceAfterWithdraw = await token.balanceOf(users.user.address);
       const notInvestedAfterWithdraw = await hub.getTotalNotInvested(token.address);
       const totalStakedAfterWithdraw = await hub.getTotalStaked(token.address);
@@ -372,7 +372,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
       const timeDeposit = await time.latest();
 
       //Wait and refresh with apr
@@ -386,7 +386,7 @@ describe("MuchoHubTest", async function () {
       //withdraw MORE than not invested, should only take from the not invested liquidity
       const amountWithdraw = notInvestedTotalAfterApr.add(totalStakedAfterApr.sub(notInvestedTotalAfterApr).div(2));
       const balanceBeforeWithdraw = await token.balanceOf(users.user.address);
-      await hub.connect(users.owner).withdrawFrom(users.user.address, token.address, amountWithdraw);
+      await hub.connect(users.owner).withdrawFrom(users.user.address, token.address, amountWithdraw, 0, users.admin.address);
       const balanceAfterWithdraw = await token.balanceOf(users.user.address);
       const notInvestedAfterWithdraw = await hub.getTotalNotInvested(token.address);
       const totalStakedAfterWithdraw = await hub.getTotalStaked(token.address);
@@ -417,7 +417,7 @@ describe("MuchoHubTest", async function () {
 
       //Make deposit
       await token.connect(users.user).approve(hub.address, bnAmount);
-      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount);
+      await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
       const timeDeposit = await time.latest();
 
       //Wait and refresh with apr
@@ -482,13 +482,13 @@ describe("MuchoHubTest", async function () {
 
       //OWNER (contract owner)
       const ONLY_OWNER_REASON = "MuchoRoles: Only for owner";
-      await expect(hub.connect(users.user).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
-      await expect(hub.connect(users.trader).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
-      await expect(hub.connect(users.admin).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.user).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.trader).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.admin).depositFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
 
-      await expect(hub.connect(users.user).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
-      await expect(hub.connect(users.trader).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
-      await expect(hub.connect(users.admin).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.user).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.trader).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
+      await expect(hub.connect(users.admin).withdrawFrom(FAKE_ADDRESS, FAKE_ADDRESS, 1E6, 0, users.admin.address)).revertedWith(ONLY_OWNER_REASON);
 
     });
   });

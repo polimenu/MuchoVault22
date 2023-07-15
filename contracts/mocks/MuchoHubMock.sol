@@ -15,6 +15,8 @@ contract MuchoHubMock is IMuchoHub{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
+    uint256 depositFee = 0;
+    uint256 withdrawalFee = 0;
     int256 apr = 10000;
     mapping(address => uint256) lastUpdate;
     mapping(address => uint256) tokenAmount;
@@ -24,8 +26,14 @@ contract MuchoHubMock is IMuchoHub{
     function setApr(int256 _apr) external{
         apr = _apr;
     }
+    function setDepositFee(uint256 _fee) external{
+        depositFee = _fee;
+    }
+    function setWithdrawalFee(uint256 _fee) external{
+        withdrawalFee = _fee;
+    }
 
-    function depositFrom(address _investor, address _token, uint256 _amount) external{
+    function depositFrom(address _investor, address _token, uint256 _amount, uint256 _amountOwnerFee, address _feeDestination) external{
         tokenList.add(_token);
         tokenAmount[_token] = tokenAmount[_token].add(_amount);
         IERC20(_token).safeTransferFrom(_investor, address(this), _amount);
@@ -34,14 +42,16 @@ contract MuchoHubMock is IMuchoHub{
             //console.log("    SOL - Updating last updated", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
+        IERC20(_token).safeTransferFrom(_investor, _feeDestination, _amountOwnerFee);
     }
-    function withdrawFrom(address _investor, address _token, uint256 _amount) external{
-        tokenAmount[_token] = tokenAmount[_token].sub(_amount);
+    function withdrawFrom(address _investor, address _token, uint256 _amount, uint256 _amountOwnerFee, address _feeDestination) external{
+        tokenAmount[_token] = tokenAmount[_token].sub(_amount).sub(_amountOwnerFee);
         if(lastUpdate[_token] == 0){
             //console.log("    SOL - Updating last update", block.timestamp);
             lastUpdate[_token] = block.timestamp;
         }
         IERC20(_token).safeTransfer(_investor, _amount);
+        IERC20(_token).safeTransfer(_feeDestination, _amountOwnerFee);
     }
 
     function addProtocol(address _contract) external{}
@@ -83,6 +93,14 @@ contract MuchoHubMock is IMuchoHub{
     }
     function getTotalStaked(address _token) external view returns(uint256){
         return tokenAmount[_token];
+    }
+
+    function getDepositFee(address _token, uint256 _amount) external view returns(uint256){
+        return _amount.mul(depositFee).div(10000);
+    }
+
+    function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256){
+        return _amount.mul(withdrawalFee).div(10000);
     }
 
     function getTotalUSD() external view returns(uint256){

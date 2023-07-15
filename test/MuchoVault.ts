@@ -178,7 +178,8 @@ describe("MuchoVaultTest", async function () {
       await token.transfer(user.address, INITIAL_AMOUNT);
       await token.connect(user).approve(mHub.address, DEPOSIT);
       await mVault.connect(user).deposit(0, DEPOSIT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(Math.round(DEPOSIT * (1 - FEE)));
+      const ts = (await mVault.getVaultInfo(0)).totalStaked;
+      expect(ts).equal(Math.round(DEPOSIT * (1 - FEE)));
       expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(Math.round(DEPOSIT * (1 - FEE)));
       expect(await mVault.vaultTotalStaked(0)).to.equal(Math.round(DEPOSIT * (1 - FEE)));
 

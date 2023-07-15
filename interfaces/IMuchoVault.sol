@@ -69,6 +69,9 @@ interface IMuchoVault{
     function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view returns(uint256);
     function getVaultInfo(uint8 _vaultId) external view returns(VaultInfo memory);
 
+
+    function getDepositFee(uint8 _vaultId, uint256 _amount) external view returns(uint256);
+    function getWithdrawalFee(uint8 _vaultId, uint256 _amount) external view returns(uint256);
     function vaultTotalUSD(uint8 _vaultId) external view returns (uint256);
     function allVaultsTotalUSD() external view returns (uint256);
     function investorVaultTotalStaked(uint8 _vaultId, address _user) external view returns (uint256);

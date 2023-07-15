@@ -49,6 +49,8 @@ interface IMuchoProtocol{
     function setCompoundProtocol(IMuchoProtocol _target) external;
     function setMuchoRewardRouter(address _contract) external;
 
+    function getDepositFee(address _token, uint256 _amount) external view returns(uint256);
+    function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256);
     function getAllTokensStaked() external view returns(address[] memory, uint256[] memory);
     function getTokenNotInvested(address _token) external view returns(uint256);
     function getTokenInvested(address _token) external view returns(uint256);

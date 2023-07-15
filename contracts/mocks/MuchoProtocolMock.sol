@@ -97,6 +97,15 @@ contract MuchoProtocolMock is IMuchoProtocol {
         return 0;
     }
 
+    
+    function getDepositFee(address _token, uint256 _amount) external view returns(uint256){
+        return 0;
+    }
+
+    function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256){
+        return 0;
+    }
+
     function withdrawAndSend(
         address _token,
         uint256 _amount,

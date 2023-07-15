@@ -35,8 +35,8 @@ interface IMuchoHub{
     event DefaultInvestmentChanged(address token, InvestmentPart[] partitionListAfter);
     event InvestmentRefreshed(address protocol, address token, uint256 oldAmount, uint256 newAmount);
 
-    function depositFrom(address _investor, address _token, uint256 _amount) external;
-    function withdrawFrom(address _investor, address _token, uint256 _amount) external;
+    function depositFrom(address _investor, address _token, uint256 _amount, uint256 _amountOwnerFee, address _feeDestination) external;
+    function withdrawFrom(address _investor, address _token, uint256 _amount, uint256 _amountOwnerFee, address _feeDestination) external;
 
     function addProtocol(address _contract) external;
     function removeProtocol(address _contract) external;
@@ -47,6 +47,8 @@ interface IMuchoHub{
     function refreshInvestment(address _protocol) external;
     function refreshAllInvestments() external;
 
+    function getDepositFee(address _token, uint256 _amount) external view returns(uint256);
+    function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256);
     function getTotalNotInvested(address _token) external view returns(uint256);
     function getTotalStaked(address _token) external view returns(uint256);
     function getTotalUSD() external view returns(uint256);

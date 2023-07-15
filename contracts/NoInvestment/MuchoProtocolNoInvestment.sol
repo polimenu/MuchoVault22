@@ -83,6 +83,13 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     }
 
 
+    function getDepositFee(address _token, uint256 _amount) external pure returns(uint256){
+        return 0;
+    }
+
+    function getWithdrawalFee(address _token, uint256 _amount) external pure returns(uint256){
+        return 0;
+    }
 
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
         return 0;

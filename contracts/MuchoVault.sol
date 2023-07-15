@@ -39,6 +39,7 @@ import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IPriceFeed.sol";
 import "./MuchoRoles.sol";
 import "../lib/UintSafe.sol";
+import "hardhat/console.sol";
 
 contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
@@ -189,6 +190,12 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
     // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
     function updateVault(uint8 _vaultId) public onlyTraderOrAdmin validVault(_vaultId)  {
+        _updateVault(_vaultId);
+    }
+
+    
+    // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
+    function _updateVault(uint8 _vaultId) internal   {
         //Update total staked
         vaultInfo[_vaultId].lastUpdate = block.timestamp;
         uint256 beforeStaked = vaultInfo[_vaultId].totalStaked;
@@ -299,8 +306,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         uint256 totalShares = mToken.totalSupply();
 
         // Remove the deposit fee and calc amount after fee
-        uint256 feeMultiplier = uint256(10000).sub(vaultInfo[_vaultId].depositFee);
-        uint256 amountAfterFee = _amount.mul(feeMultiplier).div(10000);
+        uint256 ownerDepositFee = _amount.mul(vaultInfo[_vaultId].depositFee).div(10000);
+        uint256 amountAfterFee = _amount.sub(ownerDepositFee);
 
         // If no muchoToken exists, mint it 1:1 to the amount put in
         if (totalShares == 0 || totalStakedTokens == 0) {
@@ -315,8 +322,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo[_vaultId].totalStaked = vaultInfo[_vaultId].totalStaked.add(amountAfterFee);
         vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.add(amountAfterFee);
 
-        muchoHub.depositFrom(msg.sender, address(dToken), _amount);
-        updateVault(_vaultId);
+        muchoHub.depositFrom(msg.sender, address(dToken), amountAfterFee, ownerDepositFee, earningsAddress);
+        _updateVault(_vaultId);
 
         emit Deposited(msg.sender, _vaultId, _amount, vaultInfo[_vaultId].totalStaked);
     }
@@ -339,14 +346,14 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.sub(amountOut);
         mToken.burn(msg.sender, _share);
 
-        // Applies withdraw fee:
-        if(vaultInfo[_vaultId].withdrawFee > 0){
-            uint256 feeMultiplier = uint256(10000).sub(vaultInfo[_vaultId].withdrawFee);
-            amountOut = amountOut.mul(feeMultiplier).div(10000);
-        }
+        // Calculates withdraw fee:
+        uint256 ownerWithdrawFee = amountOut.mul(vaultInfo[_vaultId].withdrawFee).div(10000);
+        amountOut = amountOut.sub(ownerWithdrawFee);
 
-        muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut);
-        updateVault(_vaultId);
+        console.log("    SOL - amountOut, ownerFee", amountOut, ownerWithdrawFee);
+
+        muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut, ownerWithdrawFee, earningsAddress);
+        _updateVault(_vaultId);
 
 
         emit Withdrawn(msg.sender, _vaultId, amountOut, _share, vaultInfo[_vaultId].totalStaked);
@@ -354,6 +361,18 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
 
     /*---------------------------------INFO VIEWS---------------------------------------*/
+
+    //Gets the deposit fee amount, adding owner's deposit fee (in this contract) + protocol's one
+    function getDepositFee(uint8 _vaultId, uint256 _amount) external view returns(uint256){
+        uint256 fee = _amount.mul(vaultInfo[_vaultId].depositFee).div(10000);
+        return fee.add(muchoHub.getDepositFee(address(vaultInfo[_vaultId].depositToken), _amount.sub(fee)));
+    }
+
+    //Gets the withdraw fee amount, adding owner's withdraw fee (in this contract) + protocol's one
+    function getWithdrawalFee(uint8 _vaultId, uint256 _amount) external view returns(uint256){
+        uint256 fee = muchoHub.getWithdrawalFee(address(vaultInfo[_vaultId].depositToken), _amount);
+        return fee.add(_amount.sub(fee).mul(vaultInfo[_vaultId].withdrawFee).div(10000));
+    }
 
     //Gets the expected APR if we add an amount of token
     function getExpectedAPR(uint8 _vaultId, uint256 _additionalAmount) external view returns(uint256){

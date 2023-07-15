@@ -338,6 +338,17 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     /*----------------------------Public VIEWS to get the token amounts------------------------------*/
 
+    
+    function getDepositFee(address _token, uint256 _amount) external view returns(uint256){
+        //ToDo
+        return 0;
+    }
+
+    function getWithdrawalFee(address _token, uint256 _amount) external view returns(uint256){
+        //ToDo
+        return 0;
+    }
+
     //Amount of token that is invested
     function getTokenInvested(address _token) public view returns (uint256) {
         return

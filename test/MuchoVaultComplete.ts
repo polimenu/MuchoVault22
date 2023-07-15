@@ -204,10 +204,6 @@ describe("MuchoVaultCompleteTest", async function () {
     await mMuchoGMX.addSecondaryToken(usdc.address, dai.address);
 
     //Set parameters
-    const APR_UPDATE_PERIOD = 24 * 3600;
-    await mMuchoGMX.setAprUpdatePeriod(APR_UPDATE_PERIOD);
-    expect(await mMuchoGMX.aprUpdatePeriod()).equal(APR_UPDATE_PERIOD);
-
     const SLIPPAGE = 100;
     await mMuchoGMX.setSlippage(SLIPPAGE);
     expect(await mMuchoGMX.slippage()).equal(SLIPPAGE);

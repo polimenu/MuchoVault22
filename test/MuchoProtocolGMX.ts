@@ -117,10 +117,6 @@ describe("MuchoProtocolGMXTest", async function () {
     await mMuchoGMX.addSecondaryToken(usdc.address, dai.address);
 
     //Set parameters
-    const APR_UPDATE_PERIOD = 24 * 3600;
-    await mMuchoGMX.setAprUpdatePeriod(APR_UPDATE_PERIOD);
-    expect(await mMuchoGMX.aprUpdatePeriod()).equal(APR_UPDATE_PERIOD);
-
     const SLIPPAGE = 100;
     await mMuchoGMX.setSlippage(SLIPPAGE);
     expect(await mMuchoGMX.slippage()).equal(SLIPPAGE);
@@ -163,7 +159,7 @@ describe("MuchoProtocolGMXTest", async function () {
       mRewardRouter: mRewardRouter,
       tokens: { usdc, weth, wbtc, usdt, dai },
       glpToken: glp,
-      constants: { APR_UPDATE_PERIOD, SLIPPAGE, MIN_NOTINV_PCTG, DES_NOTINV_PCTG, MIN_WEIGHT_MOVE, CLAIM_ESGMX, MANUAL_WEIGHTS, OWNER_PERCENTAGE, NFT_PERCENTAGE },
+      constants: {SLIPPAGE, MIN_NOTINV_PCTG, DES_NOTINV_PCTG, MIN_WEIGHT_MOVE, CLAIM_ESGMX, MANUAL_WEIGHTS, OWNER_PERCENTAGE, NFT_PERCENTAGE },
     }
   }
 
@@ -778,9 +774,6 @@ describe("MuchoProtocolGMXTest", async function () {
       const ONLY_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for trader or admin";
       await expect(mMuchoGMX.connect(users.user).updateClaimEsGMX(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).updateClaimEsGMX(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-
-      await expect(mMuchoGMX.connect(users.user).setAprUpdatePeriod(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mMuchoGMX.connect(users.owner).setAprUpdatePeriod(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
 
       await expect(mMuchoGMX.connect(users.user).setSlippage(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.owner).setSlippage(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
