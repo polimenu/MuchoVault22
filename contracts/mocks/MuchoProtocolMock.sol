@@ -10,8 +10,6 @@ import "../../interfaces/IMuchoProtocol.sol";
 import "../../interfaces/IPriceFeed.sol";
 import "../../interfaces/IMuchoToken.sol";
 import "../MuchoRoles.sol";
-//import "hardhat/console.sol";
-//import "../../lib/UintSafe.sol";
 
 contract MuchoProtocolMock is IMuchoProtocol {
     using SafeMath for uint256;

@@ -42,7 +42,6 @@ import "../../interfaces/GMX/IRewardRouter.sol";
 import "../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../interfaces/GMX/IGLPVault.sol";
 import "../MuchoRoles.sol";
-import "hardhat/console.sol";
 
 contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeMath for uint256;
@@ -278,7 +277,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Notification from the HUB of a deposit
     function notifyDeposit(address _token, uint256 _amount) external onlyOwner nonReentrant {
         require(validToken(_token), "MuchoProtocolGMX.notifyDeposit: token not supported");
-        console.log("    SOL - MuchoProtocolGMX - notifyDeposit", _token, _amount, getTokenStaked(_token));
+        //console.log("    SOL - MuchoProtocolGMX - notifyDeposit", _token, _amount, getTokenStaked(_token));
         emit DepositNotified(msg.sender, _token, _amount, getTokenStaked(_token));
     }
 

@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../../interfaces/IMuchoHub.sol";
 import "../../interfaces/IPriceFeed.sol";
-//import "hardhat/console.sol";
 
 contract MuchoHubMock is IMuchoHub{
     using EnumerableSet for EnumerableSet.AddressSet;

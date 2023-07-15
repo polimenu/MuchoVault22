@@ -8,7 +8,6 @@ import "../../../interfaces/IMuchoToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "hardhat/console.sol";
 
 contract GLPVaultMock is IGLPVault {
 
@@ -32,13 +31,13 @@ contract GLPVaultMock is IGLPVault {
     
     function allowRouter(address _token, uint256 _amount) external{
         require(msg.sender == router, "No router");
-        console.log("    SOL - Approving spent", router, _token, _amount);
+        //console.log("    SOL - Approving spent", router, _token, _amount);
         IERC20(_token).safeApprove(router, _amount);
     }
 
     function receiveTokenFrom(address _sender, address _token, uint256 _amount) external{
 
-        console.log("    SOL - Receiving tokens destination, amount", address(this), _amount);
+        //console.log("    SOL - Receiving tokens destination, amount", address(this), _amount);
         //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
         //We burn so we do not change the glp price
         IMuchoToken(_token).burn(_sender, _amount);
@@ -46,7 +45,7 @@ contract GLPVaultMock is IGLPVault {
 
     function sendGlpTo(address _receiver, uint256 _amount) external{
 
-        console.log("    SOL - Sending glp to, amount", _receiver, _amount);
+        //console.log("    SOL - Sending glp to, amount", _receiver, _amount);
         //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
         //We burn so we do not change the glp price
         glp.safeTransfer(_receiver, _amount);

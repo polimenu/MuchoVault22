@@ -37,7 +37,6 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IMuchoHub.sol";
 import "../interfaces/IMuchoProtocol.sol";
 import "./MuchoRoles.sol";
-//import "hardhat/console.sol";
 
 contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;

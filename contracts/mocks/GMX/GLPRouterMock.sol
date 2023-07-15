@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IMuchoToken.sol";
-import "hardhat/console.sol";
 
 
 contract GLPRouterMock is IGLPRouter {
@@ -43,16 +42,16 @@ contract GLPRouterMock is IGLPRouter {
         uint256 _minOut,
         address _receiver
     ) external returns (uint256) {
-      console.log("    SOL***unstakeAndRedeemGlp***", _tokenOut, _glpAmount);
+      //console.log("    SOL***unstakeAndRedeemGlp***", _tokenOut, _glpAmount);
       IERC20 token = findToken(_tokenOut);
 
       //calc glp amount to burn
       uint8 decimalsToken = IERC20Metadata(_tokenOut).decimals();
       uint256 burnFee = glpVault.getFeeBasisPoints(_tokenOut, 1, 1, 1, false);
-      console.log("    SOL - burnFee", burnFee);
+      //console.log("    SOL - burnFee", burnFee);
       uint256 usdGlp = priceFeed.getGLPprice().mul(_glpAmount).div(10**30).mul(10000 - burnFee).div(10000);
       uint256 tkAmount = usdGlp.mul(10**(30+decimalsToken-18)).div(priceFeed.getPrice(address(token)));
-      console.log("    SOL - usdGlp, tkAmount", usdGlp, tkAmount);
+      //console.log("    SOL - usdGlp, tkAmount", usdGlp, tkAmount);
 
       //burn glp & mint, to simulate unstake and remove liquidity
       IMuchoToken(address(glp)).burn(msg.sender, _glpAmount);
@@ -60,7 +59,7 @@ contract GLPRouterMock is IGLPRouter {
 
       //transfer original token to sender
       glpVault.allowRouter(address(token), tkAmount);
-      console.log("    SOL - Transferring", address(this), address(token), tkAmount);
+      //console.log("    SOL - Transferring", address(this), address(token), tkAmount);
       token.safeTransferFrom(address(glpVault), msg.sender, tkAmount);
     }
 
