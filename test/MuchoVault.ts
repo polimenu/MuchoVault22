@@ -140,6 +140,38 @@ describe("MuchoVaultTest", async function () {
       await expect(mVault.connect(admin).deposit(0, 1000)).to.be.revertedWith("MuchoVaultV2.deposit: not stakable");
     });
 
+    it("Should fail when depositing more than allowed", async function () {
+      const { mVault, mHub, tk, pFeed, admin, trader, user, mBadge} = await loadFixture(deployMuchoVault);
+      await mVault.setOpenVault(0, true);
+
+      const ct = await ethers.getContractAt("MuchoToken", tk[0].t);
+      await ct.mint(admin.address, toBN(3000, 6));
+      await ct.approve(mHub.address, toBN(3000, 6));
+
+      await mVault.setMaxDepositUser(0, toBN(1200, 6));
+      await mVault.connect(admin).deposit(0, toBN(1000, 6));
+
+      await expect(mVault.connect(admin).deposit(0, toBN(1000, 6))).to.be.revertedWith("MuchoVaultV2.deposit: depositing more than max allowed per user");
+
+      //add user to plan with more max deposit
+      await mBadge.addUserToPlan(admin.address, 3);
+      await mBadge.addUserToPlan(admin.address, 4);
+
+      //set Fees
+      const MAX1 = toBN(2000, 6), MAX2 = toBN(3000, 6), MAX3 = toBN(4000, 6);
+      await mVault.setMaxDepositUserForPlan(0, 3, MAX1);
+      await mVault.setMaxDepositUserForPlan(0, 4, MAX2);
+      await mVault.setMaxDepositUserForPlan(0, 5, MAX3);
+
+      //Check max allowed
+      const maxAllowed = await mVault.investorMaxAllowedDeposit(0, admin.address);
+      expect(maxAllowed).equal(MAX2);
+
+
+      await mVault.connect(admin).deposit(0, toBN(2000, 6));
+      await expect(mVault.connect(admin).deposit(0, toBN(1000, 6))).to.be.revertedWith("MuchoVaultV2.deposit: depositing more than max allowed per user");
+    });
+
     it("Should fail when amount is 0", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       await mVault.setOpenVault(0, true);

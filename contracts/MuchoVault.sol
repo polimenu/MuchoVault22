@@ -164,6 +164,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         return uint8(vaultInfo.length.sub(1));
     }
 
+    //Sets maximum amount to deposit for a user:
+    function setMaxDepositUser(uint8 _vaultId, uint256 _max) external onlyTraderOrAdmin validVault(_vaultId){
+        vaultInfo[_vaultId].maxDepositUser = _max;
+    }
+
     //Sets a deposit fee for a vault:
     function setDepositFee(uint8 _vaultId, uint16 _fee) external onlyTraderOrAdmin validVault(_vaultId){
         require(_fee < 500, "MuchoVault: Max deposit fee exceeded");
@@ -297,7 +302,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IERC20 dToken = vaultInfo[_vaultId].depositToken;
 
         uint256 wantedDeposit = _amount.add(investorVaultTotalStaked(_vaultId, msg.sender));
-        require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender));
+        require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender), "MuchoVaultV2.deposit: depositing more than max allowed per user");
 
         /*console.log("    SOL - DEPOSITING");
         console.log("    SOL - Sender and balance", msg.sender, dToken.balanceOf(msg.sender));
@@ -412,6 +417,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(_address != address(0), "MuchoVaultV2.displayStakedBalance: No valid address");
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         uint256 totalShares = mToken.totalSupply();
+        if(totalShares == 0) return 0;
         uint256 amountOut = mToken.balanceOf(_address).mul(vaultInfo[_vaultId].totalStaked).div(totalShares);
         return amountOut;
     }
