@@ -289,6 +289,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         IERC20 dToken = vaultInfo[_vaultId].depositToken;
 
+        uint256 wantedDeposit = _amount.add(investorVaultTotalStaked(_vaultId, msg.sender));
+        require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender));
+
         /*console.log("    SOL - DEPOSITING");
         console.log("    SOL - Sender and balance", msg.sender, dToken.balanceOf(msg.sender));
         console.log("    SOL - amount", _amount);*/
@@ -398,12 +401,25 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     }
 
     //Displays total amount a user has staked in a vault:
-    function investorVaultTotalStaked(uint8 _vaultId, address _address) validVault(_vaultId) external view returns(uint256) {
+    function investorVaultTotalStaked(uint8 _vaultId, address _address) validVault(_vaultId) public view returns(uint256) {
         require(_address != address(0), "MuchoVaultV2.displayStakedBalance: No valid address");
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         uint256 totalShares = mToken.totalSupply();
         uint256 amountOut = mToken.balanceOf(_address).mul(vaultInfo[_vaultId].totalStaked).div(totalShares);
         return amountOut;
+    }
+
+    //Maximum amount of token allowed to deposit for user:
+    function investorMaxAllowedDeposit(uint8 _vaultId, address _user) validVault(_vaultId) public view returns(uint256){
+        uint256 maxAllowed = vaultInfo[_vaultId].maxDepositUser;
+        IMuchoBadgeManager.Plan[] memory plans = badgeManager.activePlansForUser(_user);
+        for(uint i = 0; i < plans.length; i = i.add(1)){
+            uint256 id = plans[i].id;
+            if(vaultInfo[_vaultId].maxDepositUserPlan[id] > maxAllowed)
+                maxAllowed = vaultInfo[_vaultId].maxDepositUserPlan[id];
+        }
+
+        return maxAllowed;
     }
 
     //Price Muchotoken vs "real" token:
