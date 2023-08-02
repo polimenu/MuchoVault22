@@ -7,3 +7,4 @@ interface IMuchoToken is IERC20Metadata {
     function mint(address recipient, uint256 _amount) external;
     function burn(address _from, uint256 _amount) external ;
 }
+
