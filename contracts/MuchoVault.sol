@@ -59,21 +59,21 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     /*--------------------------CONTRACTS---------------------------------------*/
 
     //HUB for handling investment in the different protocols:
-    IMuchoHub muchoHub = IMuchoHub(0x0000000000000000000000000000000000000000);
+    IMuchoHub public muchoHub = IMuchoHub(0x0000000000000000000000000000000000000000);
     function setMuchoHub(address _contract) external onlyAdmin{ 
         muchoHub = IMuchoHub(_contract);
         emit MuchoHubChanged(_contract); 
     }
 
     //Price feed to calculate USD values:
-    IPriceFeed priceFeed = IPriceFeed(0x0000000000000000000000000000000000000000);
+    IPriceFeed public priceFeed = IPriceFeed(0x0000000000000000000000000000000000000000);
     function setPriceFeed(address _contract) external onlyAdmin{ 
         priceFeed = IPriceFeed(_contract);
         emit PriceFeedChanged(_contract); 
     }
 
     //Badge Manager to get NFT holder attributes:
-    IMuchoBadgeManager private badgeManager = IMuchoBadgeManager(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
+    IMuchoBadgeManager public badgeManager = IMuchoBadgeManager(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
     function setBadgeManager(address _contract) external onlyAdmin { 
         badgeManager = IMuchoBadgeManager(_contract);
         emit BadgeManagerChanged(_contract);
@@ -88,12 +88,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
 
     /*--------------------------PARAMETERS--------------------------------------*/
-    //Every time we update values and this period passed since last time, we save an APR for the period:
-    uint256 public aprUpdatePeriod = 1 days;
-    function setAprUpdatePeriod(uint256 _seconds) external onlyAdmin{ 
-        aprUpdatePeriod = _seconds; 
-        emit AprUpdatePeriodChanged(_seconds);
-    }
 
     //Fee (basic points) we will charge for swapping between mucho tokens:
     uint256 public bpSwapMuchoTokensFee = 25;

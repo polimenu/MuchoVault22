@@ -61,7 +61,6 @@ interface IMuchoVault{
     function setBadgeManager(address _contract) external;
     function setEarningsAddress(address _addr) external;
 
-    function setAprUpdatePeriod(uint256 _seconds) external;
     function setSwapMuchoTokensFee(uint256 _percent) external;
     function setSwapMuchoTokensFeeForPlan(uint256 _planId, uint256 _percent) external;
     function removeSwapMuchoTokensFeeForPlan(uint256 _planId) external;
