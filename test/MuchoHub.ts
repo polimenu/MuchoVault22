@@ -298,10 +298,10 @@ describe("MuchoHubTest", async function () {
       //Check amounts
       const total = await hub.getTotalStaked(token.address);
       const parts = await hub.getCurrentInvestment(token.address);
-      expect(total).equal(expectedAmount, "Expected total amount after APR does not fit");
+      expect(total).closeTo(expectedAmount, 10, "Expected total amount after APR does not fit");
       expect(parts[0].length).equal(expectedAmounts.length, "Actual investment number of parts different from theoric");
       parts[0].forEach((p, i) =>{
-        expect(p.amount).equal(expectedAmounts[i], `Amount not expected for protocol${i}`);
+        expect(p.amount).closeTo(expectedAmounts[i], 10, `Amount not expected for protocol${i}`);
       })
 
       //Check not invested

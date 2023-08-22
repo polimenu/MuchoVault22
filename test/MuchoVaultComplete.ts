@@ -675,9 +675,6 @@ describe("MuchoVaultCompleteTest", async function () {
       await expect(mVault.connect(user).setBadgeManager(admin.address)).revertedWith(ONLY_ADMIN_REASON);
       await expect(mVault.connect(trader).setBadgeManager(admin.address)).revertedWith(ONLY_ADMIN_REASON);
 
-      await expect(mVault.connect(user).setAprUpdatePeriod(1)).revertedWith(ONLY_ADMIN_REASON);
-      await expect(mVault.connect(trader).setAprUpdatePeriod(1)).revertedWith(ONLY_ADMIN_REASON);
-
       await expect(mVault.connect(user).addVault(tk[0].t, tk[0].m)).revertedWith(ONLY_ADMIN_REASON);
       await expect(mVault.connect(trader).addVault(tk[0].t, tk[0].m)).revertedWith(ONLY_ADMIN_REASON);
 

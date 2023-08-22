@@ -47,11 +47,11 @@ describe("MuchoProtocolGMXTest", async function () {
     await usdt.mint(user.address, toBN(100000, 6));
     await dai.mint(user.address, toBN(100000, 6));
 
-    console.log("usdc", usdc.address);
-    console.log("weth", weth.address);
-    console.log("wbtc", wbtc.address);
-    console.log("usdt", usdt.address);
-    console.log("dai", dai.address);
+    //console.log("usdc", usdc.address);
+    //console.log("weth", weth.address);
+    //console.log("wbtc", wbtc.address);
+    //console.log("usdt", usdt.address);
+    //console.log("dai", dai.address);
 
     //Deploy rest of mocks
     const glpVault = await (await ethers.getContractFactory("GLPVaultMock")).deploy(glp.address);
@@ -110,11 +110,30 @@ describe("MuchoProtocolGMXTest", async function () {
     await mMuchoGMX.grantRole(OWNER_ROLE, owner.address);
 
     //Add tokens
+    expect((await mMuchoGMX.getTokens()).length).equal(0);
     await mMuchoGMX.addToken(usdc.address);
+    expect((await mMuchoGMX.getTokens()).length).equal(1);
+    expect((await mMuchoGMX.getTokens())[0]).equal(usdc.address);
     await mMuchoGMX.addToken(weth.address);
+    expect((await mMuchoGMX.getTokens()).length).equal(2);
+    expect((await mMuchoGMX.getTokens())[0]).equal(usdc.address);
+    expect((await mMuchoGMX.getTokens())[1]).equal(weth.address);
     await mMuchoGMX.addToken(wbtc.address);
+    expect((await mMuchoGMX.getTokens()).length).equal(3);
+    expect((await mMuchoGMX.getTokens())[0]).equal(usdc.address);
+    expect((await mMuchoGMX.getTokens())[1]).equal(weth.address);
+    expect((await mMuchoGMX.getTokens())[2]).equal(wbtc.address);
+
+    expect((await mMuchoGMX.getSecondaryTokens(weth.address)).length).equal(0);
+    expect((await mMuchoGMX.getSecondaryTokens(wbtc.address)).length).equal(0);
+    expect((await mMuchoGMX.getSecondaryTokens(usdc.address)).length).equal(0);
     await mMuchoGMX.addSecondaryToken(usdc.address, usdt.address);
     await mMuchoGMX.addSecondaryToken(usdc.address, dai.address);
+    expect((await mMuchoGMX.getSecondaryTokens(usdc.address)).length).equal(2);
+    expect((await mMuchoGMX.getSecondaryTokens(usdc.address))[0]).equal(usdt.address);
+    expect((await mMuchoGMX.getSecondaryTokens(usdc.address))[1]).equal(dai.address);
+    expect((await mMuchoGMX.getSecondaryTokens(weth.address)).length).equal(0);
+    expect((await mMuchoGMX.getSecondaryTokens(wbtc.address)).length).equal(0);
 
     //Set parameters
     const SLIPPAGE = 100;
@@ -192,22 +211,22 @@ describe("MuchoProtocolGMXTest", async function () {
         EXPECTED_USD: ExpectedAmounts,
         EXPECTED_AMOUNTS: ExpectedAmounts) => {
 
-        console.log("*****Start test*********");
+        //console.log("*****Start test*********");
 
         //Mint or burn ERC20 tokens for having in GLP Vault the exact amount requested
         for (const token in tokens) {
           const bal: eth.BigNumber = await tokens[token].balanceOf(glpVault.address);
           const newAm: eth.BigNumber = GLP_AMOUNTS[token];
           if (bal.lt(newAm)) {
-            console.log(`Minting amount ${newAm.sub(bal)} for token ${token}`)
+            //console.log(`Minting amount ${newAm.sub(bal)} for token ${token}`)
             await tokens[token].mint(glpVault.address, newAm.sub(bal));
           }
           else if (newAm.lt(bal)) {
-            console.log(`Burning amount ${bal.sub(newAm)} for token ${token}`)
+            //console.log(`Burning amount ${bal.sub(newAm)} for token ${token}`)
             await tokens[token].burn(glpVault.address, bal.sub(newAm));
           }
           else {
-            console.log(`Nothing to burn or mint for token ${token}`)
+            //console.log(`Nothing to burn or mint for token ${token}`)
           }
         }
 
@@ -218,8 +237,8 @@ describe("MuchoProtocolGMXTest", async function () {
         else if (glpBal.gt(GLP_AMOUNT))
           await glpToken.burn(glpVault.address, glpBal.sub(GLP_AMOUNT));
 
-        console.log("Supply glp", await glpToken.totalSupply());
-        console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 30));
+        //console.log("Supply glp", await glpToken.totalSupply());
+        //console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 30));
 
         //Test reads glp weights properly
         await mMuchoGMX.connect(users.admin).updateGlpWeights();
@@ -230,36 +249,36 @@ describe("MuchoProtocolGMXTest", async function () {
         //Depositing or withdrawing tokens in vaults
         for (var i = 0; i < 10; i++) {
           let allOk = true;
-          console.log(`***ADJUSTMENT ITERATION ${i}***`);
+          //console.log(`***ADJUSTMENT ITERATION ${i}***`);
 
           for (const itk in tokens) {
             const bal: eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[itk].address);
             const dec: number = await tokens[itk].decimals();
-            console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
+            //console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
             const newAm: eth.BigNumber = DEPOSIT_AMOUNTS[itk];
             if (bal.lt(newAm)) {
               allOk = false;
-              console.log(`Depositing amount ${fromBN(newAm.sub(bal), dec)} for token ${itk}`);
+              //console.log(`Depositing amount ${fromBN(newAm.sub(bal), dec)} for token ${itk}`);
               await tokens[itk].mint(mMuchoGMX.address, newAm.sub(bal));
               await mMuchoGMX.connect(users.owner).notifyDeposit(tokens[itk].address, newAm.sub(bal));
             }
             else if (newAm.lt(bal)) {
               allOk = false;
               const toWdr = bal.sub(newAm);
-              console.log(`Withdrawing amount ${fromBN(toWdr, dec)} for token ${itk}`)
+              //console.log(`Withdrawing amount ${fromBN(toWdr, dec)} for token ${itk}`)
               const txWdr = await mMuchoGMX.connect(users.owner).notInvestedTrySend(tokens[itk].address, toWdr, users.user.address);
               const rc = await txWdr.wait();
               const wdr = rc.events.find(e => e.event === 'WithdrawnNotInvested').args[2];
-              console.log(`Withdrawn from not invested: ${fromBN(wdr, dec)} for token ${itk}`)
+              //console.log(`Withdrawn from not invested: ${fromBN(wdr, dec)} for token ${itk}`)
 
               if (wdr.lt(toWdr)) {
                 const wdrInv = toWdr.sub(wdr);
-                console.log(`Withdrawing from investment amount ${fromBN(wdrInv, dec)} for token ${itk}`)
+                //console.log(`Withdrawing from investment amount ${fromBN(wdrInv, dec)} for token ${itk}`)
                 await mMuchoGMX.connect(users.owner).withdrawAndSend(tokens[itk].address, wdrInv, users.user.address);
               }
             }
             else {
-              console.log(`Nothing to withdraw or deposit for token ${itk}`)
+              //console.log(`Nothing to withdraw or deposit for token ${itk}`)
             }
           }
 
@@ -267,13 +286,13 @@ describe("MuchoProtocolGMXTest", async function () {
             break;
         }
 
-        console.log(`FINAL USDC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.usdc.address), 18)}`);
-        console.log(`FINAL WETH USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.weth.address), 18)}`);
-        console.log(`FINAL WBTC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.wbtc.address), 18)}`);
+        //console.log(`FINAL USDC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.usdc.address), 18)}`);
+        //console.log(`FINAL WETH USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.weth.address), 18)}`);
+        //console.log(`FINAL WBTC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.wbtc.address), 18)}`);
 
-        console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address), 6)}`);
-        console.log(`FINAL WETH Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.weth.address), 18)}`);
-        console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 12)}`);
+        //console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address), 6)}`);
+        //console.log(`FINAL WETH Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.weth.address), 18)}`);
+        //console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 12)}`);
 
         //Update to weights
         await mMuchoGMX.connect(users.owner).refreshInvestment();
@@ -305,9 +324,9 @@ describe("MuchoProtocolGMXTest", async function () {
         expect(Math.round(fromBN(wethInv, 18 - EXPECTED_AMOUNTS.weth.precision)) / (10 ** EXPECTED_AMOUNTS.weth.precision)).closeTo(EXPECTED_AMOUNTS.weth.invested, EXPECTED_AMOUNTS.weth.invested * TOLERANCE_PCTG, "Invested WETH staked does not match");
         expect(Math.round(fromBN(wethNInv, 18 - EXPECTED_AMOUNTS.weth.precision)) / (10 ** EXPECTED_AMOUNTS.weth.precision)).closeTo(EXPECTED_AMOUNTS.weth.notInvested, EXPECTED_AMOUNTS.weth.notInvested * TOLERANCE_PCTG, "Not invested WETH staked does not match");
 
-        expect(Math.round(fromBN(wbtcTot, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.staked, EXPECTED_AMOUNTS.wbtc.staked * TOLERANCE_PCTG, "Total WBTC staked does not match");
-        expect(Math.round(fromBN(wbtcInv, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.invested, EXPECTED_AMOUNTS.wbtc.invested * TOLERANCE_PCTG, "Invested WBTC staked does not match");
-        expect(Math.round(fromBN(wbtcNInv, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.notInvested, EXPECTED_AMOUNTS.wbtc.notInvested * TOLERANCE_PCTG, "Not invested WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcTot, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.staked, EXPECTED_AMOUNTS.wbtc.staked * TOLERANCE_PCTG, "Total WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcInv, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.invested, EXPECTED_AMOUNTS.wbtc.invested * TOLERANCE_PCTG, "Invested WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcNInv, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.notInvested, EXPECTED_AMOUNTS.wbtc.notInvested * TOLERANCE_PCTG, "Not invested WBTC staked does not match");
 
         const usdUsdcTot = await mMuchoGMX.connect(users.user).getTokenUSDStaked(tokens.usdc.address);
         const usdUsdcInv = await mMuchoGMX.connect(users.user).getTokenUSDInvested(tokens.usdc.address);
@@ -351,7 +370,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(300 * 1e6, 6),
           dai: toBN(200 * 1e6, 6),
           weth: toBN(600 * 1e6, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300 * 1e6, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300 * 1e6, 8 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -359,7 +378,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(0, 6),
           dai: toBN(0, 6),
           weth: toBN(300, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300, 8 + 30).div(WBTC_PRICE),
         },
         {
           usdc: 1500 / 2400,
@@ -386,7 +405,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(300 * 1e6, 6),
           dai: toBN(200 * 1e6, 6),
           weth: toBN(600 * 1e6, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300 * 1e6, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300 * 1e6, 8 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -394,7 +413,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(0, 6),
           dai: toBN(0, 6),
           weth: toBN(100, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300, 8 + 30).div(WBTC_PRICE),
         },
         {
           usdc: 1500 / 2400,
@@ -422,7 +441,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(300 * 1e6, 6),
           dai: toBN(200 * 1e6, 6),
           weth: toBN(600 * 1e6, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(3000 * 1e6, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(3000 * 1e6, 8 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -430,7 +449,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(0, 6),
           dai: toBN(0, 6),
           weth: toBN(100, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300, 8 + 30).div(WBTC_PRICE),
         },
         {
           usdc: 1500 / 5100,
@@ -480,22 +499,22 @@ describe("MuchoProtocolGMXTest", async function () {
         EXPECTED_USD: ExpectedAmounts,
         EXPECTED_AMOUNTS: ExpectedAmounts) => {
 
-        console.log("*****Start test*********");
+        //console.log("*****Start test*********");
 
         //Mint or burn ERC20 tokens for having in GLP Vault the exact amount requested
         for (const token in tokens) {
           const bal: eth.BigNumber = await tokens[token].balanceOf(glpVault.address);
           const newAm: eth.BigNumber = GLP_AMOUNTS[token];
           if (bal.lt(newAm)) {
-            console.log(`Minting amount ${newAm.sub(bal)} for token ${token}`)
+            //console.log(`Minting amount ${newAm.sub(bal)} for token ${token}`)
             await tokens[token].mint(glpVault.address, newAm.sub(bal));
           }
           else if (newAm.lt(bal)) {
-            console.log(`Burning amount ${bal.sub(newAm)} for token ${token}`)
+            //console.log(`Burning amount ${bal.sub(newAm)} for token ${token}`)
             await tokens[token].burn(glpVault.address, bal.sub(newAm));
           }
           else {
-            console.log(`Nothing to burn or mint for token ${token}`)
+            //console.log(`Nothing to burn or mint for token ${token}`)
           }
         }
 
@@ -515,36 +534,36 @@ describe("MuchoProtocolGMXTest", async function () {
         //Depositing or withdrawing tokens in vaults
         for (var i = 0; i < 10; i++) {
           let allOk = true;
-          console.log(`***ADJUSTMENT ITERATION ${i}***`);
+          //console.log(`***ADJUSTMENT ITERATION ${i}***`);
 
           for (const itk in tokens) {
             const bal: eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[itk].address);
             const dec: number = await tokens[itk].decimals();
-            console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
+            //console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
             const newAm: eth.BigNumber = DEPOSIT_AMOUNTS[itk];
             if (bal.lt(newAm)) {
               allOk = false;
-              console.log(`Depositing amount ${fromBN(newAm.sub(bal), dec)} for token ${itk}`);
+              //console.log(`Depositing amount ${fromBN(newAm.sub(bal), dec)} for token ${itk}`);
               await tokens[itk].mint(mMuchoGMX.address, newAm.sub(bal));
               await mMuchoGMX.connect(users.owner).notifyDeposit(tokens[itk].address, newAm.sub(bal));
             }
             else if (newAm.lt(bal)) {
               allOk = false;
               const toWdr = bal.sub(newAm);
-              console.log(`Withdrawing amount ${fromBN(toWdr, dec)} for token ${itk}`)
+              //console.log(`Withdrawing amount ${fromBN(toWdr, dec)} for token ${itk}`)
               const txWdr = await mMuchoGMX.connect(users.owner).notInvestedTrySend(tokens[itk].address, toWdr, users.user.address);
               const rc = await txWdr.wait();
               const wdr = rc.events.find(e => e.event === 'WithdrawnNotInvested').args[2];
-              console.log(`Withdrawn from not invested: ${fromBN(wdr, dec)} for token ${itk}`)
+              //console.log(`Withdrawn from not invested: ${fromBN(wdr, dec)} for token ${itk}`)
 
               if (wdr.lt(toWdr)) {
                 const wdrInv = toWdr.sub(wdr);
-                console.log(`Withdrawing from investment amount ${fromBN(wdrInv, dec)} for token ${itk}`)
+                //console.log(`Withdrawing from investment amount ${fromBN(wdrInv, dec)} for token ${itk}`)
                 await mMuchoGMX.connect(users.owner).withdrawAndSend(tokens[itk].address, wdrInv, users.user.address);
               }
             }
             else {
-              console.log(`Nothing to withdraw or deposit for token ${itk}`)
+              //console.log(`Nothing to withdraw or deposit for token ${itk}`)
             }
           }
 
@@ -552,19 +571,19 @@ describe("MuchoProtocolGMXTest", async function () {
             break;
         }
 
-        console.log(`FINAL USDC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.usdc.address), 18)}`);
-        console.log(`FINAL WETH USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.weth.address), 18)}`);
-        console.log(`FINAL WBTC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.wbtc.address), 18)}`);
+        //console.log(`FINAL USDC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.usdc.address), 18)}`);
+        //console.log(`FINAL WETH USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.weth.address), 18)}`);
+        //console.log(`FINAL WBTC USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenUSDStaked(tokens.wbtc.address), 18)}`);
 
-        console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address), 6)}`);
-        console.log(`FINAL WETH Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.weth.address), 18)}`);
-        console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 12)}`);
+        //console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address), 6)}`);
+        //console.log(`FINAL WETH Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.weth.address), 18)}`);
+        //console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 12)}`);
 
         //Update to weights
         await mMuchoGMX.connect(users.owner).refreshInvestment();
 
-        console.log(`TOTAL USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTotalUSD(), 18)}`);
-        console.log(`TOTAL INVESTED USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTotalInvestedUSD(), 18)}`);
+        //console.log(`TOTAL USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTotalUSD(), 18)}`);
+        //console.log(`TOTAL INVESTED USD Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTotalInvestedUSD(), 18)}`);
 
         //start rewarding
         await glpRewardRouter.resetCounter();
@@ -587,10 +606,10 @@ describe("MuchoProtocolGMXTest", async function () {
         const wbtcInv = await mMuchoGMX.connect(users.user).getTokenInvested(tokens.wbtc.address);
         const wbtcNInv = await mMuchoGMX.connect(users.user).getTokenNotInvested(tokens.wbtc.address);
 
-        console.log("TOT - INV - NOT INV");
-        console.log("USDC: ", fromBN(usdcTot, 6), fromBN(usdcInv, 6), fromBN(usdcNInv, 6));
-        console.log("WETH: ", fromBN(wethTot, 18), fromBN(wethInv, 18), fromBN(wethNInv, 18));
-        console.log("WBTC: ", fromBN(wbtcTot, 12), fromBN(wbtcInv, 12), fromBN(wbtcNInv, 12));
+        //console.log("TOT - INV - NOT INV");
+        //console.log("USDC: ", fromBN(usdcTot, 6), fromBN(usdcInv, 6), fromBN(usdcNInv, 6));
+        //console.log("WETH: ", fromBN(wethTot, 18), fromBN(wethInv, 18), fromBN(wethNInv, 18));
+        //console.log("WBTC: ", fromBN(wbtcTot, 12), fromBN(wbtcInv, 12), fromBN(wbtcNInv, 12));
 
         const TOLERANCE_PCTG = 0.01; //1% tolerance
 
@@ -602,9 +621,9 @@ describe("MuchoProtocolGMXTest", async function () {
         expect(Math.round(fromBN(wethInv, 18 - EXPECTED_AMOUNTS.weth.precision)) / (10 ** EXPECTED_AMOUNTS.weth.precision)).closeTo(EXPECTED_AMOUNTS.weth.invested, EXPECTED_AMOUNTS.weth.invested * TOLERANCE_PCTG, "Invested WETH staked does not match");
         expect(Math.round(fromBN(wethNInv, 18 - EXPECTED_AMOUNTS.weth.precision)) / (10 ** EXPECTED_AMOUNTS.weth.precision)).closeTo(EXPECTED_AMOUNTS.weth.notInvested, EXPECTED_AMOUNTS.weth.notInvested * TOLERANCE_PCTG, "Not invested WETH staked does not match");
 
-        expect(Math.round(fromBN(wbtcTot, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.staked, EXPECTED_AMOUNTS.wbtc.staked * TOLERANCE_PCTG, "Total WBTC staked does not match");
-        expect(Math.round(fromBN(wbtcInv, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.invested, EXPECTED_AMOUNTS.wbtc.invested * TOLERANCE_PCTG, "Invested WBTC staked does not match");
-        expect(Math.round(fromBN(wbtcNInv, 12 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.notInvested, EXPECTED_AMOUNTS.wbtc.notInvested * TOLERANCE_PCTG, "Not invested WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcTot, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.staked, EXPECTED_AMOUNTS.wbtc.staked * TOLERANCE_PCTG, "Total WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcInv, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.invested, EXPECTED_AMOUNTS.wbtc.invested * TOLERANCE_PCTG, "Invested WBTC staked does not match");
+        expect(Math.round(fromBN(wbtcNInv, 8 - EXPECTED_AMOUNTS.wbtc.precision)) / (10 ** EXPECTED_AMOUNTS.wbtc.precision)).closeTo(EXPECTED_AMOUNTS.wbtc.notInvested, EXPECTED_AMOUNTS.wbtc.notInvested * TOLERANCE_PCTG, "Not invested WBTC staked does not match");
 
         const usdUsdcTot = await mMuchoGMX.connect(users.user).getTokenUSDStaked(tokens.usdc.address);
         const usdUsdcInv = await mMuchoGMX.connect(users.user).getTokenUSDInvested(tokens.usdc.address);
@@ -631,14 +650,14 @@ describe("MuchoProtocolGMXTest", async function () {
         expect(Math.round(fromBN(usdWbtcNInv, 18 - EXPECTED_USD.wbtc.precision)) / (10 ** EXPECTED_USD.wbtc.precision)).closeTo(EXPECTED_USD.wbtc.notInvested, EXPECTED_USD.wbtc.notInvested * TOLERANCE_PCTG, "USD Not invested WBTC staked does not match");
 
 
-        console.log("(USD) TOT - INV - NOT INV");
-        console.log("usd USDC: ", fromBN(usdUsdcTot, 18), fromBN(usdUsdcInv, 18), fromBN(usdUsdcNInv, 18));
-        console.log("usd WETH: ", fromBN(usdWethTot, 18), fromBN(usdWethInv, 18), fromBN(usdWethNInv, 18));
-        console.log("usd WBTC: ", fromBN(usdWbtcTot, 18), fromBN(usdWbtcInv, 18), fromBN(usdWbtcNInv, 18));
+        //console.log("(USD) TOT - INV - NOT INV");
+        //console.log("usd USDC: ", fromBN(usdUsdcTot, 18), fromBN(usdUsdcInv, 18), fromBN(usdUsdcNInv, 18));
+        //console.log("usd WETH: ", fromBN(usdWethTot, 18), fromBN(usdWethInv, 18), fromBN(usdWethNInv, 18));
+        //console.log("usd WBTC: ", fromBN(usdWbtcTot, 18), fromBN(usdWbtcInv, 18), fromBN(usdWbtcNInv, 18));
  
-        console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 30));
-        console.log("Amount glp", fromBN(await glpToken.balanceOf(mMuchoGMX.address), 18));
-        console.log("Decimals glp", await glpToken.decimals());
+        //console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 30));
+        //console.log("Amount glp", fromBN(await glpToken.balanceOf(mMuchoGMX.address), 18));
+        //console.log("Decimals glp", await glpToken.decimals());
       }
 
       //Test Values: https://docs.google.com/spreadsheets/d/1OBsrnXMI5orVMv7alr9ZSxZ4F0rT6xvfJxqut-F71yY/edit#gid=1507133984
@@ -648,7 +667,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(300 * 1e6, 6),
           dai: toBN(200 * 1e6, 6),
           weth: toBN(600 * 1e6, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300 * 1e6, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300 * 1e6, 8 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -656,7 +675,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(0, 6),
           dai: toBN(0, 6),
           weth: toBN(300, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300, 8 + 30).div(WBTC_PRICE),
         },
         3000,
         180*24*3600,
@@ -680,7 +699,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(300 * 1e6, 6),
           dai: toBN(200 * 1e6, 6),
           weth: toBN(600 * 1e6, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300 * 1e6, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300 * 1e6, 8 + 30).div(WBTC_PRICE),
         }
         ,
         {
@@ -688,7 +707,7 @@ describe("MuchoProtocolGMXTest", async function () {
           usdt: toBN(0, 6),
           dai: toBN(0, 6),
           weth: toBN(300, 18 + 30).div(WETH_PRICE),
-          wbtc: toBN(300, 12 + 30).div(WBTC_PRICE),
+          wbtc: toBN(300, 8 + 30).div(WBTC_PRICE),
         },
         15000,
         730*24*3600,

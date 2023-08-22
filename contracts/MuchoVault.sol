@@ -116,6 +116,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function setMaxDepositUserForPlan(uint256 _vaultId, uint256 _planId, uint256 _amount) external onlyTraderOrAdmin{
         maxDepositUserPlan[_vaultId][_planId] = _amount;
     }
+    function getMaxDepositUserForPlan(uint256 _vaultId, uint256 _planId) external view returns(uint256){
+        return maxDepositUserPlan[_vaultId][_planId];
+    }
 
     /*---------------------------------MODIFIERS and CHECKERS---------------------------------*/
     //Validates a vault ID

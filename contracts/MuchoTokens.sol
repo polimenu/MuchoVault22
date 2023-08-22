@@ -67,5 +67,5 @@ contract mWETH is MuchoToken{
     constructor() MuchoToken("mWETH", "mWETH", 18){}
 }
 contract mWBTC is MuchoToken{
-    constructor() MuchoToken("mWBTC", "mWBTC", 12){}
+    constructor() MuchoToken("mWBTC", "mWBTC", 8){}
 }

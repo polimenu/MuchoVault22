@@ -85,11 +85,11 @@ contract WETH is ERC20{
 contract WBTC is ERC20{
 
     constructor() ERC20("WBTC", "WBTC"){ 
-        _mint(msg.sender, 100 * 10**12);
+        _mint(msg.sender, 100 * 10**8);
     }
 
     function decimals() public override pure returns(uint8){
-        return 12;
+        return 8;
     }
 
     function mint(address _to, uint256 _amount) external{

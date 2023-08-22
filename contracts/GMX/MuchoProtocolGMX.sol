@@ -89,11 +89,26 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     function addToken(address _token) external onlyAdmin {
         tokenList.add(_token);
     }
+    function getTokens() external view returns(address[] memory){
+        address[] memory tk = new address[](tokenList.length());
+        for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
+            tk[i] = tokenList.at(i);
+        }
+        return tk;
+    }
 
     //Relation between a token and secondary for weight computing (eg. USDT and DAI can be secondary for USDC)
     mapping(address => EnumerableSet.AddressSet) tokenToSecondaryTokens;
     function addSecondaryToken(address _mainToken, address _secondary) external onlyAdmin { tokenToSecondaryTokens[_mainToken].add(_secondary);    }
     function removeSecondaryToken(address _mainToken, address _secondary) external onlyAdmin { tokenToSecondaryTokens[_mainToken].remove(_secondary);    }
+    function getSecondaryTokens(address _mainToken) external view returns(address[] memory){
+        EnumerableSet.AddressSet storage secList = tokenToSecondaryTokens[_mainToken];
+        address[] memory tk = new address[](secList.length());
+        for (uint256 i = 0; i < secList.length(); i = i.add(1)) {
+            tk[i] = secList.at(i);
+        }
+        return tk;
+    }
 
     //Slippage we use when converting to GLP, to have a security gap with mint fees
     uint256 public slippage = 50;
@@ -318,18 +333,20 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             totalUsdg = totalUsdg.add(vaultUsdg);
         }
 
-        // Calculate weights for every vault
-        uint256 totalWeight = 0;
-        for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
-            address token = tokenList.at(i);
-            uint256 vaultWeight = glpUsdgs[i].mul(10000).div(totalUsdg);
-            glpWeight[token] = vaultWeight;
-            totalWeight = totalWeight.add(vaultWeight);
-        }
+        if(totalUsdg>0){
+            // Calculate weights for every vault
+            uint256 totalWeight = 0;
+            for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
+                address token = tokenList.at(i);
+                uint256 vaultWeight = glpUsdgs[i].mul(10000).div(totalUsdg);
+                glpWeight[token] = vaultWeight;
+                totalWeight = totalWeight.add(vaultWeight);
+            }
 
-        // Check total weight makes sense
-        uint256 diff = (totalWeight > 10000) ? (totalWeight - 10000) : (10000 - totalWeight);
-        require(diff < 100, "MuchoProtocolGmx.updateDesiredWeightsFromGLP: Total weight far away from 1");
+            // Check total weight makes sense
+            uint256 diff = (totalWeight > 10000) ? (totalWeight - 10000) : (10000 - totalWeight);
+            require(diff < 100, "MuchoProtocolGmx.updateDesiredWeightsFromGLP: Total weight far away from 1");
+        }
 
         //Update date
         lastWeightUpdate = block.timestamp;
