@@ -58,6 +58,25 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return "Performs a delta neutral strategy against GLP yield from GMX protocol";
     }
 
+
+    constructor(){
+        glpApr = 1800;
+        glpWethMintFee = 25;
+        compoundProtocol = IMuchoProtocol(address(this));
+        rewardSplit = RewardSplit({NftPercentage: 10, ownerPercentage: 20});
+        grantRole(CONTRACT_OWNER, 0x7832fAb4F1d23754F89F30e5319146D16789c088);
+        tokenList.add(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
+        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
+        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1);
+        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9);
+        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F);
+        tokenList.add(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
+        tokenToSecondaryTokens[0x82aF49447D8a07e3bd95BD0d56f35241523fBab1].add(0xf97f4df75117a78c1A5a0DBb814Af92458539FB4);
+        tokenToSecondaryTokens[0x82aF49447D8a07e3bd95BD0d56f35241523fBab1].add(0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0);
+        tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f);
+    }
+
+
     /*---------------------------Variables--------------------------------*/
     //Last time weights updated from GMX
     uint256 lastWeightUpdate;
@@ -118,7 +137,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Address where we send the owner profit
-    address public earningsAddress;
+    address public earningsAddress = 0x829C145cE54A7f8c9302CD728310fdD6950B3e16;
     function setEarningsAddress(address _earnings) external onlyAdmin {
         require(_earnings != address(0), "not valid");
         earningsAddress = _earnings;
@@ -226,13 +245,13 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //MuchoRewardRouter Interaction for NFT Holders
-    IMuchoRewardRouter public muchoRewardRouter = IMuchoRewardRouter(address(0));
+    IMuchoRewardRouter public muchoRewardRouter = IMuchoRewardRouter(0x570C2857CC624077070F7Bb1F10929aad658dA37);
     function setMuchoRewardRouter(address _contract) external onlyAdmin {
         muchoRewardRouter = IMuchoRewardRouter(_contract);
     }
 
     //GLP Price feed
-    IGLPPriceFeed public priceFeed;
+    IGLPPriceFeed public priceFeed = IGLPPriceFeed(0x846ecf0462981CC0f2674f14be6Da2056Fc16bDA);
     function setPriceFeed(IGLPPriceFeed _feed) external onlyAdmin {
         priceFeed = _feed;
     }
@@ -298,7 +317,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Expected APR with current investment
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
-        uint256 investedPctg = getTokenInvested(_token).add(_additionalAmount).mul(10000).div(getTokenStaked(_token));
+        uint256 investedPctg = getTokenInvested(_token).mul(10000).div(getTokenStaked(_token).add(_additionalAmount));
         uint256 compoundPctg = 10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage;
         return glpApr.mul(compoundPctg).mul(10000 - glpWethMintFee).mul(investedPctg).div(10**12);
     }
@@ -603,7 +622,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
                 .mul(priceFeed.getPrice(_token))
                 .div(priceFeed.getGLPprice())
                 .mul(10 ** glpDecimals)
-                .div(10 ** decimals);
+                .div(10 ** (decimals + 18));
     }
 
     function glpToToken(uint256 _amountGlp, address _token) internal view returns (uint256) {
@@ -613,30 +632,40 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return
             _amountGlp
                 .mul(priceFeed.getGLPprice())
+                .mul(10 ** (decimals + 18))
                 .div(priceFeed.getPrice(_token))
-                .mul(10 ** decimals)
                 .div(10 ** glpDecimals);
     }
 
     function tokenToUsd(address _token, uint256 _amount) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
-        return _amount.mul(priceFeed.getPrice(_token)).div(10 ** (30 - 18 + decimals));
+        return _amount
+                    .mul(priceFeed.getPrice(_token))
+                    .div(10 ** (12 + decimals));
     }
 
     function usdToToken(uint256 _usdAmount, address _token) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
-        return _usdAmount.mul(10 ** (30 - 18 + decimals)).div(priceFeed.getPrice(_token));
+        return _usdAmount
+                    .mul(10 ** (12 + decimals))
+                    .div(priceFeed.getPrice(_token));
     }
 
     function usdToGlp(uint256 _usdAmount) internal view returns (uint256) {
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
-        return _usdAmount.mul(10 ** (30 + glpDecimals - 18)).div(priceFeed.getGLPprice());
+        return _usdAmount
+                    .mul(10 ** glpDecimals)
+                    .div(10 ** 6)
+                    .div(priceFeed.getGLPprice());
     }
 
     function glpToUsd(uint256 _glpAmount) internal view returns (uint256) {
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
-        return _glpAmount.mul(priceFeed.getGLPprice()).div(10 ** (30 + glpDecimals - 18));
+        return _glpAmount
+                    .mul(priceFeed.getGLPprice())
+                    .mul(10 ** 6)
+                    .div(10 ** glpDecimals);
     }
 
 
@@ -644,20 +673,27 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     /*----------------------------GLP mint and token conversion------------------------------*/
 
     function swapGLPto( uint256 _amountGlp, address token, uint256 min_receive) private returns (uint256) {
-        return
-            glpRouter.unstakeAndRedeemGlp(
-                token,
-                _amountGlp,
-                min_receive,
-                address(this)
-            );
+        if(_amountGlp > 0)
+            return
+                glpRouter.unstakeAndRedeemGlp(
+                    token,
+                    _amountGlp,
+                    min_receive,
+                    address(this)
+                );
+        
+        return 0;
     }
 
     //Mint GLP from token
     function swaptoGLP(uint256 _amount, address token) private returns (uint256) {
-        IERC20(token).safeIncreaseAllowance(poolGLP, _amount);
-        uint256 resGlp = glpRouter.mintAndStakeGlp(token, _amount, 0, 0);
+        if(_amount > 0){
+            IERC20(token).safeIncreaseAllowance(poolGLP, _amount);
+            uint256 resGlp = glpRouter.mintAndStakeGlp(token, _amount, 0, 0);
 
-        return resGlp;
+            return resGlp;
+        }
+
+        return 0;
     }
 }

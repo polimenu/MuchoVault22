@@ -84,13 +84,14 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
 
     function setDefaultInvestment(address _token, InvestmentPart[] memory _partitionList) external onlyTraderOrAdmin checkPartitionList(_partitionList) {
         tokenDefaultInvestment[_token].defined = true;
+        tokenDefaultInvestment[_token].parts = new InvestmentPart[](_partitionList.length);
         for (uint256 i = 0; i < _partitionList.length; i = i.add(1)) {
-            tokenDefaultInvestment[_token].parts.push(
+            tokenDefaultInvestment[_token].parts[i] = 
                 InvestmentPart({
                     percentage: _partitionList[i].percentage,
                     protocol: _partitionList[i].protocol
                 })
-            );
+            ;
         }
         emit DefaultInvestmentChanged(_token, _partitionList);
     }
