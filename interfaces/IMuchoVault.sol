@@ -52,8 +52,6 @@ interface IMuchoVault{
     function setDepositFee(uint8 _vaultId, uint16 _fee) external;
     function setWithdrawFee(uint8 _vaultId, uint16 _fee) external;
 
-    function updateVault(uint8 _vaultId) external;
-    function updateAllVaults() external;
     function refreshAndUpdateAllVaults() external;
 
     function setMuchoHub(address _newContract) external;

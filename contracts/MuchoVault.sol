@@ -147,8 +147,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         vaultInfo.push(VaultInfo({
             depositToken: _depositToken,
             muchoToken: _muchoToken,
-            totalStaked:0,
-            stakedFromDeposits:0,
             lastUpdate: block.timestamp, 
             stakable: false,
             depositFee: 0,
@@ -202,33 +200,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         }
     }
 
-    // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
-    function updateVault(uint8 _vaultId) public onlyTraderOrAdmin validVault(_vaultId)  {
-        _updateVault(_vaultId);
-    }
-
-    
-    // Updates the totalStaked amount and refreshes apr (if it's time) in a vault:
-    function _updateVault(uint8 _vaultId) internal   {
-        //Update total staked
-        vaultInfo[_vaultId].lastUpdate = block.timestamp;
-        uint256 beforeStaked = vaultInfo[_vaultId].totalStaked;
-        vaultInfo[_vaultId].totalStaked = muchoHub.getTotalStaked(address(vaultInfo[_vaultId].depositToken));
-
-        emit VaultUpdated(_vaultId, beforeStaked, vaultInfo[_vaultId].totalStaked);
-    }
-
-    // Updates all vaults:
-    function updateAllVaults() public onlyTraderOrAdmin {
-        for (uint8 _vaultId = 0; _vaultId < vaultInfo.length; ++ _vaultId){
-            updateVault(_vaultId);
-        }
-    }
-
     // Refresh Investment and update all vaults:
     function refreshAndUpdateAllVaults() external onlyTraderOrAdmin {
         muchoHub.refreshAllInvestments();
-        updateAllVaults();
     }
 
     /*----------------------------Swaps between muchoTokens handling------------------------------*/
@@ -265,24 +239,14 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(destOutAmount > 0, "MuchoVaultV2.swap: user would get nothing");
         require(destOutAmount >= _amountOutExpected.mul(10000 - _maxSlippage).div(10000), "MuchoVaultV2.swap: Max slippage exceeded");
         require(destOutAmount < dMToken.totalSupply().div(10), "MuchoVaultV2.swap: cannot swap more than 10% of total destination");
-        require(destOutAmount < vaultInfo[_destVaultId].stakedFromDeposits.div(3), "MuchoVaultV2.swap: cannot swap more than 33% of destination vault staked from deposits");
+        require(destOutAmount < vaultTotalStaked(_destVaultId).div(10), "MuchoVaultV2.swap: cannot swap more than 10% of destination vault staked");
 
         //Move staked token
-        {
-            uint256 destIncreaseOrigToken = destOutAmount.mul(vaultInfo[_destVaultId].totalStaked).div(dMToken.totalSupply());
-            vaultInfo[_destVaultId].totalStaked = vaultInfo[_destVaultId].totalStaked.add(destIncreaseOrigToken);
-            vaultInfo[_destVaultId].stakedFromDeposits = vaultInfo[_destVaultId].stakedFromDeposits.add(destIncreaseOrigToken);
-        }
-        {
-            uint256 sourceDecreaseOrigToken = _amountSourceMToken.sub(sourceOwnerAmount).mul(vaultInfo[_sourceVaultId].totalStaked);
-            sourceDecreaseOrigToken = sourceDecreaseOrigToken.div(sMToken.totalSupply());
-            //console.log("    SOL - sourceDecreaseOrigToken", sourceDecreaseOrigToken);
-            //console.log("    SOL - vaultInfo[_sourceVaultId].totalStaked", vaultInfo[_sourceVaultId].totalStaked);
-            require(sourceDecreaseOrigToken < vaultInfo[_sourceVaultId].totalStaked.div(10), "Cannot subtract more than 10% of total staked in source");
-            require(sourceDecreaseOrigToken < vaultInfo[_sourceVaultId].stakedFromDeposits.div(3), "Cannot subtract more than 33% of deposit staked in source");
-            vaultInfo[_sourceVaultId].totalStaked = vaultInfo[_sourceVaultId].totalStaked.sub(sourceDecreaseOrigToken);
-            vaultInfo[_sourceVaultId].stakedFromDeposits = vaultInfo[_sourceVaultId].stakedFromDeposits.sub(sourceDecreaseOrigToken);
-        }
+        uint256 sourceDecreaseOrigToken = _amountSourceMToken.sub(sourceOwnerAmount).mul(vaultTotalStaked(_sourceVaultId));
+        sourceDecreaseOrigToken = sourceDecreaseOrigToken.div(sMToken.totalSupply());
+        //console.log("    SOL - sourceDecreaseOrigToken", sourceDecreaseOrigToken);
+        //console.log("    SOL - vaultInfo[_sourceVaultId].totalStaked", vaultInfo[_sourceVaultId].totalStaked);
+        require(sourceDecreaseOrigToken < vaultTotalStaked(_sourceVaultId).div(10), "Cannot subtract more than 10% of total staked in source");
 
         //Send fee to protocol owner
         if(sourceOwnerAmount > 0)
@@ -313,12 +277,12 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(msg.sender != address(0), "MuchoVaultV2.deposit: address is not valid");
         require(_amount <= dToken.balanceOf(msg.sender), "MuchoVaultV2.deposit: balance too low" );
         require(vaultInfo[_vaultId].stakable, "MuchoVaultV2.deposit: not stakable");
-        require(vaultInfo[_vaultId].maxCap == 0 || vaultInfo[_vaultId].maxCap >= _amount.add(vaultInfo[_vaultId].totalStaked), "MuchoVaultV2.deposit: depositing more than max allowed in total");
+        require(vaultInfo[_vaultId].maxCap == 0 || vaultInfo[_vaultId].maxCap >= _amount.add(vaultTotalStaked(_vaultId)), "MuchoVaultV2.deposit: depositing more than max allowed in total");
         uint256 wantedDeposit = _amount.add(investorVaultTotalStaked(_vaultId, msg.sender));
         require(wantedDeposit <= investorMaxAllowedDeposit(_vaultId, msg.sender), "MuchoVaultV2.deposit: depositing more than max allowed per user");
      
         // Gets the amount of deposit token locked in the contract
-        uint256 totalStakedTokens = vaultInfo[_vaultId].totalStaked;
+        uint256 totalStakedTokens = vaultTotalStaked(_vaultId);
 
         // Gets the amount of muchoToken in existence
         uint256 totalShares = mToken.totalSupply();
@@ -340,19 +304,15 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             uint256 what = amountAfterFee.mul(totalShares).div(totalStakedTokens);
             mToken.mint(msg.sender, what);
         }
-        
-        vaultInfo[_vaultId].totalStaked = vaultInfo[_vaultId].totalStaked.add(amountAfterFee);
-        vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.add(amountAfterFee);
 
         //console.log("    SOL - TOTAL STAKED AFTER DEP 0", vaultInfo[_vaultId].totalStaked);
         //console.log("    SOL - EXECUTING DEPOSIT FROM IN HUB");
         muchoHub.depositFrom(msg.sender, address(dToken), amountAfterFee, ownerDepositFee, earningsAddress);
         //console.log("    SOL - TOTAL STAKED AFTER DEP 1", vaultInfo[_vaultId].totalStaked);
         //console.log("    SOL - EXECUTING UPDATE VAULT");
-        _updateVault(_vaultId);
         //console.log("    SOL - TOTAL STAKED AFTER DEP 2", vaultInfo[_vaultId].totalStaked);
 
-        emit Deposited(msg.sender, _vaultId, _amount, vaultInfo[_vaultId].totalStaked);
+        emit Deposited(msg.sender, _vaultId, _amount, vaultTotalStaked(_vaultId));
     }
 
     //Withdraws from a vault. The user should have muschoTokens that will be burnt
@@ -367,10 +327,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         require(_share <= mToken.balanceOf(msg.sender), "MuchoVaultV2.withdraw: balance too low");
 
         // Calculates the amount of depositToken the muchoToken is worth
-        uint256 amountOut = _share.mul(vaultInfo[_vaultId].totalStaked).div(mToken.totalSupply());
+        uint256 amountOut = _share.mul(vaultTotalStaked(_vaultId)).div(mToken.totalSupply());
 
-        vaultInfo[_vaultId].totalStaked = vaultInfo[_vaultId].totalStaked.sub(amountOut);
-        vaultInfo[_vaultId].stakedFromDeposits = vaultInfo[_vaultId].stakedFromDeposits.sub(amountOut);
         mToken.burn(msg.sender, _share);
 
         // Calculates withdraw fee:
@@ -380,10 +338,9 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         //console.log("    SOL - amountOut, ownerFee", amountOut, ownerWithdrawFee);
 
         muchoHub.withdrawFrom(msg.sender, address(dToken), amountOut, ownerWithdrawFee, earningsAddress);
-        _updateVault(_vaultId);
 
 
-        emit Withdrawn(msg.sender, _vaultId, amountOut, _share, vaultInfo[_vaultId].totalStaked);
+        emit Withdrawn(msg.sender, _vaultId, amountOut, _share, vaultTotalStaked(_vaultId));
     }
 
 
@@ -407,14 +364,10 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     }
 
     //Displays total amount of staked tokens in a vault:
-    function vaultTotalStaked(uint8 _vaultId) validVault(_vaultId) external view returns(uint256) {
-        return vaultInfo[_vaultId].totalStaked;
+    function vaultTotalStaked(uint8 _vaultId) validVault(_vaultId) public view returns(uint256) {
+        return muchoHub.getTotalStaked(address(vaultInfo[_vaultId].depositToken));
     }
-
-    //Displays total amount of staked tokens from deposits (excluding profit) in a vault:
-    function vaultStakedFromDeposits(uint8 _vaultId) validVault(_vaultId) external view returns(uint256) {
-        return vaultInfo[_vaultId].stakedFromDeposits;
-    }
+    
 
     //Displays total amount a user has staked in a vault:
     function investorVaultTotalStaked(uint8 _vaultId, address _address) validVault(_vaultId) public view returns(uint256) {
@@ -422,7 +375,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         uint256 totalShares = mToken.totalSupply();
         if(totalShares == 0) return 0;
-        uint256 amountOut = mToken.balanceOf(_address).mul(vaultInfo[_vaultId].totalStaked).div(totalShares);
+        uint256 amountOut = mToken.balanceOf(_address).mul(vaultTotalStaked(_vaultId)).div(totalShares);
         return amountOut;
     }
 
@@ -443,13 +396,13 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function muchoTokenToDepositTokenPrice(uint8 _vaultId) validVault(_vaultId) external view returns(uint256) {
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         uint256 totalShares = mToken.totalSupply();
-        uint256 amountOut = (vaultInfo[_vaultId].totalStaked).mul(10**18).div(totalShares);
+        uint256 amountOut = vaultTotalStaked(_vaultId).mul(10**18).div(totalShares);
         return amountOut;
     }
 
     //Total USD in a vault (18 decimals):
     function vaultTotalUSD(uint8 _vaultId) validVault(_vaultId) public view returns(uint256) {
-         return getUSD(vaultInfo[_vaultId].depositToken, vaultInfo[_vaultId].totalStaked);
+         return getUSD(vaultInfo[_vaultId].depositToken, vaultTotalStaked(_vaultId));
     }
 
     //Total USD an investor has in a vault:
@@ -462,7 +415,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         if(mTokenUser == 0 || mTokenTotal == 0)
             return 0;
 
-        return getUSD(vaultInfo[_vaultId].depositToken, vaultInfo[_vaultId].totalStaked.mul(mTokenUser).div(mTokenTotal));
+        return getUSD(vaultInfo[_vaultId].depositToken, vaultTotalStaked(_vaultId).mul(mTokenUser).div(mTokenTotal));
     }
 
     //Total USD an investor has in all vaults:
@@ -553,7 +506,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             //console.log("    SOL - source Price", sourcePrice);
             //console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
             amountTargetForUser = _amountSourceMToken
-                                        .mul(vaultInfo[_sourceVaultId].totalStaked)
+                                        .mul(vaultTotalStaked(_sourceVaultId))
                                         .mul(sourcePrice)
                                         .mul(vaultInfo[_destVaultId].muchoToken.totalSupply());
         }
@@ -570,7 +523,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         //console.log("    SOL - source totalSupply", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
         //console.log("    SOL - dest totalStaked", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
         amountTargetForUser = amountTargetForUser.div(vaultInfo[_sourceVaultId].muchoToken.totalSupply())
-                                    .div(vaultInfo[_destVaultId].totalStaked)
+                                    .div(vaultTotalStaked(_destVaultId))
                                     .div(destPrice);
 
         

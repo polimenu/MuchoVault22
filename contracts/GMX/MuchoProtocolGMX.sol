@@ -63,7 +63,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         glpApr = 1800;
         glpWethMintFee = 25;
         compoundProtocol = IMuchoProtocol(address(this));
-        rewardSplit = RewardSplit({NftPercentage: 10, ownerPercentage: 20});
+        rewardSplit = RewardSplit({NftPercentage: 1000, ownerPercentage: 2000});
         grantRole(CONTRACT_OWNER, 0x7832fAb4F1d23754F89F30e5319146D16789c088);
         tokenList.add(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
         tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
@@ -76,16 +76,18 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f);
     }
 
+    struct TokenWeight{
+        address token;
+        uint256 weight;
+    }
+
 
     /*---------------------------Variables--------------------------------*/
-    //Last time weights updated from GMX
-    uint256 lastWeightUpdate;
-
     //Last time rewards collected and values refreshed
     uint256 public lastUpdate;
 
     //Desired weight (same GLP has) for every token
-    mapping(address => uint256) glpWeight;
+    mapping(address => uint256) manualGlpWeight;
 
     /*---------------------------Parameters--------------------------------*/
 
@@ -261,10 +263,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Updates weights, token investment, refreshes amounts and updates aprs:
     function refreshInvestment() external onlyOwnerTraderOrAdmin {
         //console.log("    SOL ***refreshInvestment function***");
-        if (!manualModeWeights && block.timestamp.sub(lastWeightUpdate) > maxRefreshWeightLapse) {
-            updateGlpWeights();
-        }
-
         updateTokensInvestment();
     }
 
@@ -295,11 +293,11 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         require(_amount <= getTokenInvested(_token), "Cannot withdraw more than invested");
         
         //Total GLP to unstake
-        uint256 glpOut = tokenToGlp(_token, _amount).mul(10000 + slippage).div(glpWeight[_token]);
+        uint256 glpOut = tokenToGlp(_token, _amount).mul(100000 + slippage).div(glpWeight(_token)).div(10);
 
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
             address tk = tokenList.at(i);
-            uint256 glpToTk = glpOut.mul(glpWeight[tk]).div(10000);
+            uint256 glpToTk = glpOut.mul(glpWeight(tk)).div(10000);
             uint256 minReceive = (tk == _token) ? _amount : 0;
             swapGLPto(glpToTk, tk, minReceive);
         }
@@ -329,12 +327,37 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     function setWeight(address _token, uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 7000 && _percent > 0, "MuchoProtocolGmx.setWeight: not in range");
         require(manualModeWeights, "MuchoProtocolGmx.setWeight: automatic mode");
-        glpWeight[_token] = _percent;
+        manualGlpWeight[_token] = _percent;
+    }
+
+    function glpWeight(address _token) internal view returns(uint256){
+        if(manualModeWeights){
+            return manualGlpWeight[_token];
+        }
+        else{
+            TokenWeight[] memory tWeight = glpWeights();
+
+            for (uint i = 0; i < tWeight.length; i = i.add(1)) {
+                if(tWeight[i].token == _token)
+                    return tWeight[i].weight;
+            }
+
+            revert("MuchoProtocolGmx: Could not find weight for the token");
+        }
     }
 
     //Updates desired weights from GLP in automatic mode:
-    function updateGlpWeights() public onlyOwnerTraderOrAdmin {
-        require(!manualModeWeights, "MuchoProtocolGmx: manual mode");
+    function glpWeights() public view returns(TokenWeight[] memory){
+        TokenWeight[] memory tWeight = new TokenWeight[](tokenList.length());
+
+        if(manualModeWeights){
+            for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
+                address token = tokenList.at(i);
+                tWeight[i] = TokenWeight({token:token, weight:manualGlpWeight[token]});
+            }
+
+            return tWeight;
+        }
 
         // Store all USDG value (deposit + secondary tokens) for each vault, and total USDG amount to divide later
         uint256 totalUsdg;
@@ -358,7 +381,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
                 address token = tokenList.at(i);
                 uint256 vaultWeight = glpUsdgs[i].mul(10000).div(totalUsdg);
-                glpWeight[token] = vaultWeight;
+                tWeight[i] = TokenWeight({token:token, weight:vaultWeight});
                 totalWeight = totalWeight.add(vaultWeight);
             }
 
@@ -368,7 +391,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
 
         //Update date
-        lastWeightUpdate = block.timestamp;
+        return tWeight;
     }
 
 
@@ -398,7 +421,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     function getTokenInvested(address _token) public view returns (uint256) {
         return
             glpToToken(fsGLP.balanceOf(address(this)), _token)
-                .mul(glpWeight[_token])
+                .mul(glpWeight(_token))
                 .div(10000);
     }
 
@@ -426,7 +449,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //USD value of token that is invested
     function getTokenUSDInvested(address _token) public view returns (uint256) {
-        return glpToUsd(fsGLP.balanceOf(address(this))).mul(glpWeight[_token]).div(10000);
+        return glpToUsd(fsGLP.balanceOf(address(this))).mul(glpWeight(_token)).div(10000);
     }
 
     //USD value of token that is NOT invested
@@ -441,7 +464,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Desired weight for a token vault
     function getTokenWeight(address _token) external view returns (uint256) {
-        return glpWeight[_token];
+        return glpWeight(_token);
     }
 
     //Total USD value (invested + not)
@@ -498,14 +521,14 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //Calc new total USD
         uint256 newTotalInvestedUsd = minTokenUsd
             .mul(10000 - desiredNotInvestedPercentage)
-            .div(glpWeight[minTokenByWeight]);
+            .div(glpWeight(minTokenByWeight));
 
         //Calculate move for every token different from the main one:
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
             address token = tokenList.at(i);
 
             if (token != minTokenByWeight) {
-                doNotMinTokenMove(token, tokenUsd[i], tokenInvestedUsd[i], newTotalInvestedUsd.mul(glpWeight[token]).div(10000) );
+                doNotMinTokenMove(token, tokenUsd[i], tokenInvestedUsd[i], newTotalInvestedUsd.mul(glpWeight(token)).div(10000) );
             }
         }
 
@@ -520,9 +543,9 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
         for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
             address token = tokenList.at(i);
-            if (glpWeight[token] > _tokenUsd[i].mul(10000).div(_totalUsd)) {
+            if (glpWeight(token) > _tokenUsd[i].mul(10000).div(_totalUsd)) {
                 uint diff = _totalUsd
-                    .mul(glpWeight[token])
+                    .mul(glpWeight(token))
                     .div(_tokenUsd[i])
                     .sub(10000); //glpWeight[token].sub(_tokenUsd[i].mul(10000).div(_totalUsd));
                 if (diff > maxDiff) {
