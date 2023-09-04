@@ -205,62 +205,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         muchoHub.refreshAllInvestments();
     }
 
-    /*----------------------------Swaps between muchoTokens handling------------------------------*/
-
-    //Gets the number of tokens user will get from a mucho swap:
-    function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view
-                     validVault(_sourceVaultId) validVault(_destVaultId) returns(uint256) {
-        //console.log("    SOL***getSwap***", _sourceVaultId, _amountSourceMToken, _destVaultId);
-        require(_amountSourceMToken > 0, "MuchoVaultV2.swapMuchoToken: Insufficent amount");
-
-        uint256 ownerAmount = getSwapFee(msg.sender).mul(_amountSourceMToken).div(10000);
-        //console.log("    SOL - ownerAmount", ownerAmount);
-        uint256 destOutAmount = 
-                    getDestinationAmountMuchoTokenExchange(_sourceVaultId, _destVaultId, _amountSourceMToken, ownerAmount);
-
-        return destOutAmount;
-    }
-
-    //Performs a muchoTokens swap
-    function swap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId, uint256 _amountOutExpected, uint16 _maxSlippage) external
-                     validVault(_sourceVaultId) validVault(_destVaultId) nonReentrant {
-
-        require(_amountSourceMToken > 0, "MuchoVaultV2.swap: Insufficent amount");
-        require(_maxSlippage < 10000, "MuchoVaultV2.swap: Maxslippage is not valid");
-        IMuchoToken sMToken = vaultInfo[_sourceVaultId].muchoToken;
-        IMuchoToken dMToken = vaultInfo[_destVaultId].muchoToken;
-        require(sMToken.balanceOf(msg.sender) >= _amountSourceMToken, "MuchoVaultV2.swap: Not enough balance");
-        require(_amountSourceMToken < sMToken.totalSupply().div(10), "MuchoVaultV2.swap: cannot swap more than 10% of total source");
-
-        uint256 sourceOwnerAmount = getSwapFee(msg.sender).mul(_amountSourceMToken).div(10000);
-        uint256 destOutAmount = 
-                    getDestinationAmountMuchoTokenExchange(_sourceVaultId, _destVaultId, _amountSourceMToken, sourceOwnerAmount);
-
-        require(destOutAmount > 0, "MuchoVaultV2.swap: user would get nothing");
-        require(destOutAmount >= _amountOutExpected.mul(10000 - _maxSlippage).div(10000), "MuchoVaultV2.swap: Max slippage exceeded");
-        require(destOutAmount < dMToken.totalSupply().div(10), "MuchoVaultV2.swap: cannot swap more than 10% of total destination");
-        require(destOutAmount < vaultTotalStaked(_destVaultId).div(10), "MuchoVaultV2.swap: cannot swap more than 10% of destination vault staked");
-
-        //Move staked token
-        uint256 sourceDecreaseOrigToken = _amountSourceMToken.sub(sourceOwnerAmount).mul(vaultTotalStaked(_sourceVaultId));
-        sourceDecreaseOrigToken = sourceDecreaseOrigToken.div(sMToken.totalSupply());
-        //console.log("    SOL - sourceDecreaseOrigToken", sourceDecreaseOrigToken);
-        //console.log("    SOL - vaultInfo[_sourceVaultId].totalStaked", vaultInfo[_sourceVaultId].totalStaked);
-        require(sourceDecreaseOrigToken < vaultTotalStaked(_sourceVaultId).div(10), "Cannot subtract more than 10% of total staked in source");
-
-        //Send fee to protocol owner
-        if(sourceOwnerAmount > 0)
-            sMToken.mint(earningsAddress, sourceOwnerAmount);
-        
-        //Send result to user
-        dMToken.mint(msg.sender, destOutAmount);
-
-        sMToken.burn(msg.sender, _amountSourceMToken);
-
-        emit Swapped(msg.sender, _sourceVaultId, _amountSourceMToken, _destVaultId, _amountOutExpected, destOutAmount, sourceOwnerAmount);
-        //console.log("    SOL - Burnt", _amountSourceMToken);
-    }
-
     /*----------------------------CORE: User deposit and withdraw------------------------------*/
     
     //Deposits an amount in a vault

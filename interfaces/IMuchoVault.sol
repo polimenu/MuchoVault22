@@ -24,7 +24,7 @@ Operaciones de upgrade (owner): cambiar direcciones de los contratos a los que s
 interface IMuchoVault{
     event Deposited(address user, uint8 vaultId, uint256 amount, uint256 totalStakedAfter);
     event Withdrawn(address user, uint8 vaultId, uint256 amount, uint256 mamount, uint256 totalStakedAfter);
-    event Swapped(address user, uint8 sourceVaultId, uint256 amountSourceMToken, uint8 destVaultId, uint256 amountOutExpected, uint256 amountOutActual, uint256 amountMTokenOwner);
+    //event Swapped(address user, uint8 sourceVaultId, uint256 amountSourceMToken, uint8 destVaultId, uint256 amountOutExpected, uint256 amountOutActual, uint256 amountMTokenOwner);
     
     event VaultAdded(IERC20Metadata depositToken, IMuchoToken muchoToken);
     event VaultOpen(uint8 vaultId);
@@ -44,7 +44,7 @@ interface IMuchoVault{
     function deposit(uint8 _vaultId, uint256 _amount) external;
     function withdraw(uint8 _vaultId, uint256 _share) external;
     
-    function swap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId, uint256 _amountOutExpected, uint16 _maxSlippage) external;
+    //function swap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId, uint256 _amountOutExpected, uint16 _maxSlippage) external;
 
     function addVault(IERC20Metadata _depositToken, IMuchoToken _muchoToken) external returns(uint8);
     function setOpenVault(uint8 _vaultId, bool open) external;
@@ -63,7 +63,7 @@ interface IMuchoVault{
     function setSwapMuchoTokensFeeForPlan(uint256 _planId, uint256 _percent) external;
     function removeSwapMuchoTokensFeeForPlan(uint256 _planId) external;
 
-    function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view returns(uint256);
+    //function getSwap(uint8 _sourceVaultId, uint256 _amountSourceMToken, uint8 _destVaultId) external view returns(uint256);
     function getVaultInfo(uint8 _vaultId) external view returns(VaultInfo memory);
 
 
