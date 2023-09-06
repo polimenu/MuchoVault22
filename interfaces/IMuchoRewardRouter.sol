@@ -26,6 +26,8 @@ interface IMuchoRewardRouter{
     event PlanRemoved(uint256 planId);
     event MultiplierChanged(uint256 planId, uint multiplier);
     event RewardsDeposited(address token, uint256 amount);
+    event RewardsNotDeposited(address token, uint256 amount);
+    event RewardsUserEarned(address token, address user, uint256 amount);
     event Withdrawn(address token, uint256 amount);
     
     //Checks if a user exists and adds it to the list

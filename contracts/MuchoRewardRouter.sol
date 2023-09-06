@@ -127,24 +127,30 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         IERC20 rewardToken = IERC20(_token);
         require(rewardToken.balanceOf(msg.sender) >= _amount, "Not enough balance");
         require(rewardToken.allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
-
-        //Get the money
-        rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
         
-        //Split among the users
         (uint256 totalUSD, uint256[] memory usersUSD) = getTotalAndUsersUSDValueWithMultiplier();
-        for(uint i = 0; i < userAddressList.length(); i = i.add(1)){
-            uint ponderatedUserUSD = usersUSD[i];
 
-            if(ponderatedUserUSD > 0){
-                uint256 userAmount = _amount.mul(ponderatedUserUSD).div(totalUSD);
-                rewards[msg.sender][_token] = rewards[msg.sender][_token].add(userAmount);
+        if(totalUSD > 0){ //Get the money
+            rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
+
+            //Split among the users
+            for(uint i = 0; i < userAddressList.length(); i = i.add(1)){
+                uint ponderatedUserUSD = usersUSD[i];
+
+                if(ponderatedUserUSD > 0){
+                    uint256 userAmount = _amount.mul(ponderatedUserUSD).div(totalUSD);
+                    rewards[userAddressList.at(i)][_token] = rewards[userAddressList.at(i)][_token].add(userAmount);
+                    emit RewardsUserEarned(_token, msg.sender, userAmount);
+                }
+
             }
 
+            rewardTokenList.add(_token);
+            emit RewardsDeposited(_token, _amount);
         }
-
-        rewardTokenList.add(_token);
-        emit RewardsDeposited(_token, _amount);
+        else{
+            emit RewardsNotDeposited(_token, _amount);
+        }
         //console.log("    SOL-***END depositRewards***");
     }
 
@@ -209,7 +215,7 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
             (uint multiplier, ) = getUserMultiplierAndPlan(userAddressList.at(i));
 
             if(multiplier > 0){
-                uint256 userUSD = muchoVault.investorTotalUSD(userAddressList.at(i));
+                uint256 userUSD = muchoVault.investorTotalUSD(userAddressList.at(i)).mul(multiplier);
                 uUSD[i] = userUSD;
                 totalUSD = totalUSD.add(userUSD);
             }
@@ -218,6 +224,7 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
             }
 
         }
+
 
         return (totalUSD, uUSD);
     }
