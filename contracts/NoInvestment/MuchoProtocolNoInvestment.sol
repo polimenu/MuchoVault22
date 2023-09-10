@@ -60,10 +60,7 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     function setCompoundProtocol(IMuchoProtocol _target) onlyTraderOrAdmin external{}
     function setMuchoRewardRouter(address _contract) onlyAdmin external{}
 
-    function getLastPeriodsApr(address _token) external view returns(int256[30] memory){
-        int256[30] memory apr;
-        return apr;
-    }
+   
     function getTokenNotInvested(address _token) public view returns(uint256){
         return IERC20(_token).balanceOf(address(this));
     }
@@ -92,6 +89,10 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
     }
 
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256){
+        return 0;
+    }
+
+    function getExpectedNFTAnnualYield() external view returns(uint256){
         return 0;
     }
     

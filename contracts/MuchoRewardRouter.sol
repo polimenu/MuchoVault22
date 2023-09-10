@@ -154,15 +154,6 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         //console.log("    SOL-***END depositRewards***");
     }
 
-    //For a user, gets the amount ponderation percentage (basis points) for a new deposit. This will be needed to calculate estimated APR of the deposit
-    function getUserAmountPonderation(address _user, uint256 _amountUSD) public view returns(uint256){
-        (uint multi, ) = getUserMultiplierAndPlan(_user);
-        uint256 newUserAmountPonderation = _amountUSD.mul(multi);
-        uint256 totalUSD = getTotalUSDValueWithMultiplier();
-        uint256 newTotalUSDPonderated = totalUSD.add(newUserAmountPonderation);
-        return newUserAmountPonderation.mul(10000).div(newTotalUSDPonderated);
-    }
-
     //For a plan, gets the current amount ponderation (basis points) for a new deposit. This will be needed to calculate estimated APR that plan's users are getting in avg
     function getPlanPonderation(uint256 _planId) public view returns(uint256){
         (uint256 planAmountPonderated, uint256 totalUSD) = getTotalAndPlanUSDValueWithMultiplier(_planId);
@@ -198,6 +189,20 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         for(uint256 i = 0; i < rewardTokenList.length(); i = i.add(1)){
             withdrawToken(rewardTokenList.at(i));
         }
+    }
+
+    //Gets the best plan multiplier for the user
+    function getUserMultiplierAndPlan(address _user) public view returns(uint, uint256){
+        uint multiplier = 0; uint256 plan = 0;
+        IMuchoBadgeManager.Plan[] memory nfts = badgeManager.activePlansForUser(_user);
+        for(uint i = 0; i < nfts.length; i = i.add(1)){
+            if(planMultiplier[nfts[i].id] > multiplier){
+                plan = nfts[i].id;
+                multiplier = planMultiplier[plan];
+            }
+        }
+
+        return (multiplier, plan);
     }
 
     /*----------------------INTERNAL FUNCTIONS---------------------*/
@@ -253,34 +258,20 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         return (totalValue, planValue);
     }
 
-    //Same as getTotalAndUsersUSDValueWithMultiplier, but only returns the total usd ponderated (less gass)
-    function getTotalUSDValueWithMultiplier() internal view returns(uint256){
+    //Same as getTotalAndUsersUSDValueWithMultiplier, but only returns the total usd ponderated
+    function getTotalPonderatedInvestment() public view returns(uint256){
         uint256 totalUSD = 0;
         for(uint i = 0; i < userAddressList.length(); i = i.add(1)){
             (uint multiplier, ) = getUserMultiplierAndPlan(userAddressList.at(i));
 
             if(multiplier > 0){
-                uint256 userUSD = muchoVault.investorTotalUSD(userAddressList.at(i));
+                uint256 userUSD = muchoVault.investorTotalUSD(userAddressList.at(i)).mul(multiplier);
                 totalUSD = totalUSD.add(userUSD);
             }
 
         }
 
         return totalUSD;
-    }
-
-    //Gets the best plan multiplier for the user
-    function getUserMultiplierAndPlan(address _user) internal view returns(uint, uint256){
-        uint multiplier = 0; uint256 plan = 0;
-        IMuchoBadgeManager.Plan[] memory nfts = badgeManager.activePlansForUser(_user);
-        for(uint i = 0; i < nfts.length; i = i.add(1)){
-            if(planMultiplier[nfts[i].id] > multiplier){
-                plan = nfts[i].id;
-                multiplier = planMultiplier[plan];
-            }
-        }
-
-        return (multiplier, plan);
     }
 
 }

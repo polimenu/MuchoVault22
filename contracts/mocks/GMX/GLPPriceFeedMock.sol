@@ -37,7 +37,7 @@ contract GLPPriceFeedMock is IGLPPriceFeed, PriceFeedMock {
         return glpVault.usdgAmounts(address(usdc))
                     .add(glpVault.usdgAmounts(address(weth)))
                     .add(glpVault.usdgAmounts(address(wbtc)))
-                    .mul(10**30)
+                    .mul(10**12)
                     .div(glp.totalSupply());
     }
 

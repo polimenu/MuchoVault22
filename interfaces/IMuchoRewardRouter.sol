@@ -54,11 +54,8 @@ interface IMuchoRewardRouter{
     //Withdraws all the rewards the user has
     function withdraw() external;
 
-    //For a user, gets the amount ponderation percentage (basis points) for a new deposit. This will be needed to calculate estimated APR of the deposit
-    function getUserAmountPonderation(address _user, uint256 _amountUSD) external view returns(uint256);
-
     //For a plan, gets the current amount ponderation (basis points) for a new deposit. This will be needed to calculate estimated APR that plan's users are getting in avg
     function getPlanPonderation(uint256 _planId) external view returns(uint256);
 
-
+    function getUserMultiplierAndPlan(address _user) external view returns(uint, uint256);
 }

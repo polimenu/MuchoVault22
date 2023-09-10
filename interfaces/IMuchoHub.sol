@@ -56,5 +56,4 @@ interface IMuchoHub{
     function getTokenDefaults(address _token) external view returns (InvestmentPart[] memory);
     function getCurrentInvestment(address _token) external view returns(InvestmentAmountPartition memory);
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256);
-    function getExpectedAPRWithNFT(address _token, uint256 _planId) external view returns(uint256);
 }

@@ -60,4 +60,5 @@ interface IMuchoProtocol{
     function getTokenUSDStaked(address _token) external view returns(uint256);
     function getTotalUSD() external view returns(uint256);
     function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns(uint256);
+    function getExpectedNFTAnnualYield() external view returns(uint256);
 }

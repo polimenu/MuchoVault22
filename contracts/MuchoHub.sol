@@ -319,17 +319,14 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
     }
 
     //Expected APR for a NFT
-    function getExpectedAPRWithNFT(address _token, uint256 _planId) external view returns(uint256){
-        require(tokenDefaultInvestment[_token].defined, "MuchoHub GEAN: Investment not defined for the token");
-
-        uint256 ponderatedApr = 0;
-        for(uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i++){
-            IMuchoProtocol p = IMuchoProtocol(tokenDefaultInvestment[_token].parts[i].protocol);
-            uint256 amount = _additionalAmount.mul(tokenDefaultInvestment[_token].parts[i].percentage).div(10000);
-            ponderatedApr = ponderatedApr.add(p.getExpectedAPR(_token, amount).mul(amount));
+    function getExpectedNFTAnnualYield() external view returns(uint256){
+        uint256 totalYield = 0;
+        for(uint256 i = 0; i < protocolList.length(); i++){
+            IMuchoProtocol p = IMuchoProtocol(protocolList.at(i));
+            totalYield.add(p.getExpectedNFTAnnualYield());
         }
 
-        return ponderatedApr.div(_additionalAmount);
+        return totalYield;
     }
 
     function protocols() external view returns (address[] memory) {

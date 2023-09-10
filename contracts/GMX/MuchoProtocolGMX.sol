@@ -42,6 +42,7 @@ import "../../interfaces/GMX/IRewardRouter.sol";
 import "../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../interfaces/GMX/IGLPVault.sol";
 import "../MuchoRoles.sol";
+import "hardhat/console.sol";
 
 contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeMath for uint256;
@@ -59,7 +60,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
 
-    constructor(){
+    function init() external onlyAdmin{
         glpApr = 1800;
         glpWethMintFee = 25;
         compoundProtocol = IMuchoProtocol(address(this));
@@ -320,6 +321,11 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return glpApr.mul(compoundPctg).mul(10000 - glpWethMintFee).mul(investedPctg).div(10**12);
     }
 
+    
+    function getExpectedNFTAnnualYield() external view returns(uint256){
+        return getTotalInvestedUSD().mul(glpApr).mul(rewardSplit.NftPercentage).div(100000000);
+    }
+
 
     /*---------------------------Methods: token handling--------------------------------*/
 
@@ -342,7 +348,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
                     return tWeight[i].weight;
             }
 
-            revert("MuchoProtocolGmx: Could not find weight for the token");
+            return 0;
         }
     }
 
@@ -419,6 +425,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Amount of token that is invested
     function getTokenInvested(address _token) public view returns (uint256) {
+        console.log("getTokenInvested", _token);
         return
             glpToToken(fsGLP.balanceOf(address(this)), _token)
                 .mul(glpWeight(_token))
@@ -427,11 +434,13 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Amount of token that is not invested
     function getTokenNotInvested(address _token) public view returns (uint256) {
+        console.log("getTokenNotInvested", _token);
         return IERC20(_token).balanceOf(address(this));
     }
 
     //Total Amount of token (invested + not)
     function getTokenStaked(address _token) public view returns (uint256) {
+        console.log("getTokenStaked", _token);
         return getTokenNotInvested(_token).add(getTokenInvested(_token));
     }
 
@@ -474,7 +483,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Invested USD value for all tokens
-    function getTotalInvestedUSD() external view returns (uint256) {
+    function getTotalInvestedUSD() public view returns (uint256) {
         uint256 tInvested = 0;
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
             tInvested = tInvested.add(getTokenUSDInvested(tokenList.at(i)));
@@ -651,6 +660,8 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     function glpToToken(uint256 _amountGlp, address _token) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
+
+        console.log("glpToToken getPrice", priceFeed.getPrice(_token));
 
         return
             _amountGlp

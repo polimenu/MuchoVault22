@@ -19,9 +19,6 @@ interface IMuchoBadgeManager {
         uint256 amount;
     }
 
-    function activePlansForUser(address _user)
-        external
-        view
-        returns (Plan[] memory);
+    function activePlansForUser(address _user) external view returns (Plan[] memory);
 
 }

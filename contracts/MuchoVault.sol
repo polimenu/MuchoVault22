@@ -307,11 +307,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         return muchoHub.getExpectedAPR(address(vaultInfo[_vaultId].depositToken), _additionalAmount);
     }
 
-    //Gets the expected APR over TOTAL INVESTMENT for a token, for a NFT plan
-    function getExpectedAPRWithNFT(uint8 _vaultId, uint256 _planId) external view returns(uint256){
-        return muchoHub.getExpectedAPRWithNFT(address(vaultInfo[_vaultId].depositToken), _planId);
-    }
-
     //Displays total amount of staked tokens in a vault:
     function vaultTotalStaked(uint8 _vaultId) validVault(_vaultId) public view returns(uint256) {
         return muchoHub.getTotalStaked(address(vaultInfo[_vaultId].depositToken));
