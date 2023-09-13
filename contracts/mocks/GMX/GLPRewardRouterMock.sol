@@ -45,12 +45,12 @@ contract GLPRewardRouterMock is IRewardRouter {
         //console.log("    SOL - 365 days", 365 days);
         //console.log("    SOL - apr", uint256(apr));
 
-        uint256 usdValue = glp.balanceOf(msg.sender).mul(priceFeed.getGLPprice()).div(10**30);
+        uint256 usdValue = glp.balanceOf(msg.sender).mul(priceFeed.getGLPprice()).div(10**12);
         //console.log("    SOL - usdValue of current glp", usdValue.div(10**14));
 
         if(usdValue > 0){
             //console.log("    SOL - current glp", glp.balanceOf(msg.sender).div(10**14));
-            //console.log("    SOL - current glp price", priceFeed.getGLPprice().div(10**26));
+            //console.log("    SOL - current glp price", priceFeed.getGLPprice().div(10**12));
             
             usdValue = usdValue.mul(uint256(apr)).mul(timeDiff).div(10000).div(365 days);
             

@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IMuchoToken.sol";
+import "hardhat/console.sol";
 
 
 contract GLPRouterMock is IGLPRouter {
@@ -49,7 +50,7 @@ contract GLPRouterMock is IGLPRouter {
       uint8 decimalsToken = IERC20Metadata(_tokenOut).decimals();
       uint256 burnFee = glpVault.getFeeBasisPoints(_tokenOut, 1, 1, 1, false);
       //console.log("    SOL - burnFee", burnFee);
-      uint256 usdGlp = priceFeed.getGLPprice().mul(_glpAmount).div(10**30).mul(10000 - burnFee).div(10000);
+      uint256 usdGlp = priceFeed.getGLPprice().mul(_glpAmount).div(10**12).mul(10000 - burnFee).div(10000);
       uint256 tkAmount = usdGlp.mul(10**(30+decimalsToken-18)).div(priceFeed.getPrice(address(token)));
       //console.log("    SOL - usdGlp, tkAmount", usdGlp, tkAmount);
 
@@ -70,31 +71,31 @@ contract GLPRouterMock is IGLPRouter {
         uint256 _minUsdg,
         uint256 _minGlp
     ) external returns (uint256) {
-      //console.log("    SOL ***mintAndStakeGlp***");
+      console.log("    SOL ***mintAndStakeGlp***");
       IERC20 token = findToken(_token);
 
       //store original token in this contract
       //token.safeTransferFrom(msg.sender, address(glpVault), _amount);
       glpVault.receiveTokenFrom(msg.sender, address(token), _amount);
-      //console.log("    SOL - Sent to vault token", address(token), _amount);
+      console.log("    SOL - Sent to vault token", address(token), _amount);
 
       //calc glp amount to mint
       uint256 mintFee = glpVault.getFeeBasisPoints(_token, 1, 1, 1, true);
-      //console.log("    SOL - mintFee", mintFee);
+      console.log("    SOL - mintFee", mintFee);
       uint256 glpPrice = priceFeed.getGLPprice();
-      //console.log("    SOL - glpPrice", glpPrice.div(10**28));
+      console.log("    SOL - glpPrice", glpPrice);
       uint256 usdOriginalToken = priceFeed.getPrice(address(token)).mul(_amount).div(10**(30-18+IERC20Metadata(_token).decimals()));
-      //console.log("       SOL - usdOriginalToken", usdOriginalToken.div(10**16));
-      uint256 tkAmount = usdOriginalToken.mul(10**30).div(glpPrice).mul(10000 - mintFee).div(10000);
-      //console.log("       SOL - tkAmount", tkAmount.div(10**16));
+      console.log("       SOL - usdOriginalToken", usdOriginalToken.div(10**16));
+      uint256 tkAmount = usdOriginalToken.mul(10**12).div(glpPrice).mul(10000 - mintFee).div(10000);
+      console.log("       SOL - tkAmount", tkAmount.div(10**16));
 
-      //console.log("    SOL - minting glp address", address(glp));
+      console.log("    SOL - minting glp address", address(glp));
 
       //send glp
       glpVault.sendGlpTo(msg.sender, tkAmount);
       return tkAmount;
 
-      //console.log("    SOL ***END mintAndStakeGlp***");
+      console.log("    SOL ***END mintAndStakeGlp***");
     }
 
 

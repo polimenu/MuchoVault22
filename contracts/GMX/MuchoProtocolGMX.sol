@@ -425,7 +425,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Amount of token that is invested
     function getTokenInvested(address _token) public view returns (uint256) {
-        console.log("getTokenInvested", _token);
+        //console.log("getTokenInvested", _token);
         return
             glpToToken(fsGLP.balanceOf(address(this)), _token)
                 .mul(glpWeight(_token))
@@ -434,13 +434,13 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Amount of token that is not invested
     function getTokenNotInvested(address _token) public view returns (uint256) {
-        console.log("getTokenNotInvested", _token);
+        //console.log("getTokenNotInvested", _token);
         return IERC20(_token).balanceOf(address(this));
     }
 
     //Total Amount of token (invested + not)
     function getTokenStaked(address _token) public view returns (uint256) {
-        console.log("getTokenStaked", _token);
+        //console.log("getTokenStaked", _token);
         return getTokenNotInvested(_token).add(getTokenInvested(_token));
     }
 
@@ -661,7 +661,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         uint8 decimals = IERC20Metadata(_token).decimals();
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
-        console.log("glpToToken getPrice", priceFeed.getPrice(_token));
+        //console.log("glpToToken getPrice", priceFeed.getPrice(_token));
 
         return
             _amountGlp

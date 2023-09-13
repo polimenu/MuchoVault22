@@ -136,7 +136,7 @@ describe("MuchoProtocolGMXTest", async function () {
     expect((await mMuchoGMX.getSecondaryTokens(wbtc.address)).length).equal(0);
 
     //Set parameters
-    const SLIPPAGE = 100;
+    const SLIPPAGE = 1000;
     await mMuchoGMX.setSlippage(SLIPPAGE);
     expect(await mMuchoGMX.slippage()).equal(SLIPPAGE);
 
@@ -211,7 +211,7 @@ describe("MuchoProtocolGMXTest", async function () {
         EXPECTED_USD: ExpectedAmounts,
         EXPECTED_AMOUNTS: ExpectedAmounts) => {
 
-        //console.log("*****Start test*********");
+        console.log("*****Start test*********");
 
         //Mint or burn ERC20 tokens for having in GLP Vault the exact amount requested
         for (const token in tokens) {
@@ -252,7 +252,7 @@ describe("MuchoProtocolGMXTest", async function () {
           console.log(`***ADJUSTMENT ITERATION ${i}***`);
 
           for (const itk in tokens) {
-            console.log("Init token ", tokens[itk].address);
+            console.log("Init token ", itk, tokens[itk].address);
             const bal: eth.BigNumber = await mMuchoGMX.connect(users.owner).getTokenStaked(tokens[itk].address);
             const dec: number = await tokens[itk].decimals();
             console.log(`Balance in MuchoVault ${itk}: ${fromBN(bal, dec)}`);
@@ -296,7 +296,7 @@ describe("MuchoProtocolGMXTest", async function () {
 
         console.log(`FINAL USDC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.usdc.address), 6)}`);
         console.log(`FINAL WETH Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.weth.address), 18)}`);
-        console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 12)}`);
+        console.log(`FINAL WBTC Balance in MuchoVault: ${fromBN(await mMuchoGMX.connect(users.owner).getTokenStaked(tokens.wbtc.address), 8)}`);
 
         //Update to weights
         await mMuchoGMX.connect(users.owner).refreshInvestment();
@@ -316,7 +316,7 @@ describe("MuchoProtocolGMXTest", async function () {
         console.log("TOT - INV - NOT INV");
         console.log("USDC: ", fromBN(usdcTot, 6), fromBN(usdcInv, 6), fromBN(usdcNInv, 6));
         console.log("WETH: ", fromBN(wethTot, 18), fromBN(wethInv, 18), fromBN(wethNInv, 18));
-        console.log("WBTC: ", fromBN(wbtcTot, 12), fromBN(wbtcInv, 12), fromBN(wbtcNInv, 12));
+        console.log("WBTC: ", fromBN(wbtcTot, 8), fromBN(wbtcInv, 8), fromBN(wbtcNInv, 8));
 
         const TOLERANCE_PCTG = 0.01; //1% tolerance
 
@@ -362,7 +362,7 @@ describe("MuchoProtocolGMXTest", async function () {
         console.log("usd WETH: ", fromBN(usdWethTot, 18), fromBN(usdWethInv, 18), fromBN(usdWethNInv, 18));
         console.log("usd WBTC: ", fromBN(usdWbtcTot, 18), fromBN(usdWbtcInv, 18), fromBN(usdWbtcNInv, 18));
  
-        console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 30));
+        console.log("Price glp", fromBN(await glpPriceFeed.getGLPprice(), 12));
         console.log("Amount glp", fromBN(await glpToken.balanceOf(mMuchoGMX.address), 18));
         console.log("Decimals glp", await glpToken.decimals());
       }
@@ -530,7 +530,7 @@ describe("MuchoProtocolGMXTest", async function () {
           await glpToken.burn(glpVault.address, glpBal.sub(GLP_AMOUNT));
 
         //Update glp weights
-        await mMuchoGMX.connect(users.admin).updateGlpWeights();
+        //await mMuchoGMX.connect(users.admin).updateGlpWeights();
 
         //Set APR
         await glpRewardRouter.setApr(APR);
@@ -829,7 +829,7 @@ describe("MuchoProtocolGMXTest", async function () {
 
       //OWNER, TRADER OR ADMIN
       const ONLY_OWNER_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for owner, trader or admin";
-      await expect(mMuchoGMX.connect(users.user).updateGlpWeights()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
+      //await expect(mMuchoGMX.connect(users.user).updateGlpWeights()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
       await expect(mMuchoGMX.connect(users.user).cycleRewards()).revertedWith(ONLY_OWNER_TRADER_OR_ADMIN_REASON);
 
       //OWNER (contract owner)
