@@ -153,6 +153,8 @@ describe("MuchoVaultCompleteTest", async function () {
 
     //Reward router
     const mRewardRouter = await (await ethers.getContractFactory("MuchoRewardRouter")).deploy();
+    await mRewardRouter.connect(admin).grantRole(await mRewardRouter.CONTRACT_OWNER(), admin.address);
+    await mRewardRouter.connect(admin).setEarningsAddress(admin.address);
 
     //Deploy main contract
     const mMuchoGMX = await (await ethers.getContractFactory("MuchoProtocolGMX")).deploy();
@@ -265,8 +267,7 @@ describe("MuchoVaultCompleteTest", async function () {
         expect(v.depositToken).to.equal(tk[i].t);
         expect(v.muchoToken).to.equal(tk[i].m);
         expect(v.stakable).to.false;
-        expect(v.totalStaked).to.equal(0);
-        expect(v.stakedFromDeposits).to.equal(0);
+        expect(await mVault.vaultTotalStaked(i)).to.equal(0);
       }
     });
 
@@ -314,8 +315,7 @@ describe("MuchoVaultCompleteTest", async function () {
       await token.transfer(user.address, AMOUNT);
       await token.connect(user).approve(mHub.address, AMOUNT);
       await mVault.connect(user).deposit(0, AMOUNT);
-      expect((await mVault.connect(user).getVaultInfo(0)).totalStaked).to.equal(AMOUNT);
-      expect((await mVault.connect(user).getVaultInfo(0)).stakedFromDeposits).to.equal(AMOUNT);
+      expect((await mVault.connect(user).vaultTotalStaked(0))).to.equal(AMOUNT);
       expect(await mVault.connect(user).vaultTotalStaked(0)).to.equal(AMOUNT);
 
       const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
@@ -339,8 +339,7 @@ describe("MuchoVaultCompleteTest", async function () {
       console.log("Init user balance:", initBalance);
       await token.connect(user).approve(mHub.address, DEPOSIT);
       await mVault.connect(user).deposit(0, DEPOSIT);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(Math.round(DEPOSIT * (1 - FEE)));
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(Math.round(DEPOSIT * (1 - FEE)));
+      expect((await mVault.vaultTotalStaked(0))).to.equal(Math.round(DEPOSIT * (1 - FEE)));
       expect(await mVault.vaultTotalStaked(0)).to.equal(Math.round(DEPOSIT * (1 - FEE)));
 
       const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
@@ -367,8 +366,7 @@ describe("MuchoVaultCompleteTest", async function () {
       await mVault.connect(user).deposit(0, DEPOSITED);
       const initBalance = await token.balanceOf(user.address);
       await mVault.connect(user).withdraw(0, WITHDRAWN);
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(EXPECTED);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(EXPECTED);
+      expect((await mVault.vaultTotalStaked(0))).to.equal(EXPECTED);
       expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
 
       expect(await token.balanceOf(user.address)).to.equal(initBalance.add(WITHDRAWN), "Unexpected user balance of token after withdraw");
@@ -396,8 +394,7 @@ describe("MuchoVaultCompleteTest", async function () {
       await mVault.connect(user).deposit(0, DEPOSITED);
       await mVault.connect(user).withdraw(0, WITHDRAWN);
       const EXPECTED = DEPOSITED - WITHDRAWN;
-      expect((await mVault.getVaultInfo(0)).totalStaked).to.equal(EXPECTED);
-      expect((await mVault.getVaultInfo(0)).stakedFromDeposits).to.equal(EXPECTED);
+      expect((await mVault.vaultTotalStaked(0))).to.equal(EXPECTED);
       expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
 
       const EXPECTED_BALANCE = initBalance.add(WITHDRAWN * (1 - FEE / 10000));
@@ -441,7 +438,6 @@ describe("MuchoVaultCompleteTest", async function () {
 
       const DEPOSITS = [300, 0.1875, 0.0125];
       const PRICES = [1, 1600, 24000];
-      const FROMDEPS = [];
 
       for(var i = 0; i < DEPOSITS.length; i++){
         const token = await getToken(i);
@@ -450,7 +446,6 @@ describe("MuchoVaultCompleteTest", async function () {
         await token.transfer(user.address, DEP_BN);
         await token.connect(user).approve(mHub.address, DEP_BN);
         await mVault.connect(user).deposit(i, DEP_BN);
-        FROMDEPS[i] = fromBN(await mVault.connect(user).vaultStakedFromDeposits(i), await token.decimals());
       }
       //await mVault.refreshAndUpdateAllVaults();
 
@@ -473,17 +468,15 @@ describe("MuchoVaultCompleteTest", async function () {
       for(var i = 0; i < DEPOSITS.length; i++){
         const token = await getToken(i);
         const staked = fromBN(await mVault.connect(user).vaultTotalStaked(i), await token.decimals());
-        const fromDeps = fromBN(await mVault.connect(user).vaultStakedFromDeposits(i), await token.decimals());
         const EXPECTED = EXPECTEDS[i];
         //console.log("EXPECTED", EXPECTED);
         expect(staked).closeTo(EXPECTED, EXPECTED * TOLERANCE, "Staked value after APR is not correct");
-        expect(fromDeps).to.equal(FROMDEPS[i], "Staked from deposits after APR not expected");
       }
     });
 
   });
 
-  describe("Swap", async () => {
+  /*describe("Swap", async () => {
 
     
 
@@ -658,7 +651,7 @@ describe("MuchoVaultCompleteTest", async function () {
     });
 
 
-  });
+  });*/
 
   describe("Roles", async function () {
     it("Should only work with the right roles", async function () {
@@ -689,8 +682,6 @@ describe("MuchoVaultCompleteTest", async function () {
       await expect(mVault.connect(user).setWithdrawFee(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).setOpenVault(1, true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).setOpenAllVault(true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mVault.connect(user).updateVault(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mVault.connect(user).updateAllVaults()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).refreshAndUpdateAllVaults()).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
     });
   });

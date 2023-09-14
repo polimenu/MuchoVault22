@@ -7,6 +7,7 @@ import "../../../interfaces/IMuchoToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+//import "hardhat/console.sol";
 
 contract GLPRewardRouterMock is IRewardRouter { 
 
@@ -38,7 +39,7 @@ contract GLPRewardRouterMock is IRewardRouter {
     function claimFees() external{
         //console.log("    SOL***claimFees***");
         uint256 timeDiff = block.timestamp.sub(lastClaim);
-        //uint8 dec = IERC20Metadata(address(glp)).decimals();
+        uint8 dec = IERC20Metadata(address(glp)).decimals();
         resetCounter();
         //console.log("    SOL - dec", dec);
         //console.log("    SOL - timeDiff", timeDiff);

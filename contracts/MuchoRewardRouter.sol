@@ -40,6 +40,7 @@ import "../interfaces/IMuchoRewardRouter.sol";
 import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IMuchoToken.sol";
 import "../interfaces/IMuchoVault.sol";
+//import "hardhat/console.sol";
 
 
 
@@ -69,8 +70,12 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
     function setBadgeManager(address _bm) public onlyOwner{ badgeManager = IMuchoBadgeManager(_bm); }
 
     //MuchoVaultV2 and setter
-    IMuchoVault public muchoVault = IMuchoVault(0x0000000000000000000000000000000000000000); //Pending to assign actual address
+    IMuchoVault public muchoVault = IMuchoVault(address(0)); //Pending to assign actual address
     function setMuchoVault(address _mv) public onlyOwner{ muchoVault = IMuchoVault(_mv); }
+
+    //Earnings address to send the "rests" when i.e. no NFT holders
+    address public earningsAddress = address(0);
+    function setEarningsAddress(address _ea) public onlyOwner{ earningsAddress = _ea; }
 
     //List of rewards
     mapping(address => mapping(address => uint256)) public rewards;
@@ -128,14 +133,18 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
         require(rewardToken.balanceOf(msg.sender) >= _amount, "Not enough balance");
         require(rewardToken.allowance(msg.sender, address(this)) >= _amount, "Not enough allowance");
         
+        //console.log("    SOL - getting total USD from nft holders");
         (uint256 totalUSD, uint256[] memory usersUSD) = getTotalAndUsersUSDValueWithMultiplier();
+        //console.log("    SOL - total USD from nft holders", totalUSD);
 
         if(totalUSD > 0){ //Get the money
+            //console.log("    SOL - getting the money for NFT holders");
             rewardToken.safeTransferFrom(msg.sender, address(this), _amount);
 
             //Split among the users
             for(uint i = 0; i < userAddressList.length(); i = i.add(1)){
                 uint ponderatedUserUSD = usersUSD[i];
+                //console.log("       SOL - user amount", usersUSD[i]);
 
                 if(ponderatedUserUSD > 0){
                     uint256 userAmount = _amount.mul(ponderatedUserUSD).div(totalUSD);
@@ -149,6 +158,8 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
             emit RewardsDeposited(_token, _amount);
         }
         else{
+            //console.log("    SOL - no nft holders, sending to the earnings address");
+            rewardToken.safeTransferFrom(msg.sender, earningsAddress, _amount);
             emit RewardsNotDeposited(_token, _amount);
         }
         //console.log("    SOL-***END depositRewards***");

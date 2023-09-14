@@ -42,7 +42,7 @@ import "../../interfaces/GMX/IRewardRouter.sol";
 import "../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../interfaces/GMX/IGLPVault.sol";
 import "../MuchoRoles.sol";
-import "hardhat/console.sol";
+//import "hardhat/console.sol";
 
 contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeMath for uint256;
@@ -612,22 +612,34 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         uint256 rewards = WETH.balanceOf(address(this)).sub(wethInit);
 
         if(rewards > 0){
+            //console.log("    SOL - WETH init", wethInit);
+            //console.log("    SOL - WETH rewards", rewards);
+            //console.log("    SOL - NFT percentage", rewardSplit.NftPercentage);
+            //console.log("    SOL - Owner percentage", rewardSplit.ownerPercentage);
             //use compoundPercentage to calculate the total amount and swap to GLP
             uint256 compoundAmount = rewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000);
+            //console.log("    SOL - Compound amount", compoundAmount);
             if (compoundProtocol == this) {
                 swaptoGLP(compoundAmount, address(WETH));
             } else {
                 notInvestedTrySend(address(WETH), compoundAmount, address(compoundProtocol));
             }
 
+            //console.log("    SOL - WETH after swap to glp", WETH.balanceOf(address(this)));
+
             //use stakersPercentage to calculate the amount for rewarding stakers
             uint256 stakersAmount = rewards.mul(rewardSplit.NftPercentage).div(10000);
             WETH.approve(address(muchoRewardRouter), stakersAmount);
+            //console.log("    SOL - dspositing amount for NFT", stakersAmount);
             muchoRewardRouter.depositRewards(address(WETH), stakersAmount);
+            
+            //console.log("    SOL - WETH after sending to nft", WETH.balanceOf(address(this)));
 
             //send the rest to admin
             uint256 adminAmount = rewards.sub(compoundAmount).sub(stakersAmount);
             WETH.safeTransfer(earningsAddress, adminAmount);
+            
+            //console.log("    SOL - WETH after swap to owner", WETH.balanceOf(address(this)));
         }
     }
 
