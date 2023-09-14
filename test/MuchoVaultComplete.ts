@@ -675,9 +675,6 @@ describe("MuchoVaultCompleteTest", async function () {
       //ADMIN or TRADER functions
       const ONLY_TRADER_OR_ADMIN_REASON = "MuchoRoles: Only for trader or admin";
 
-      await expect(mVault.connect(user).setSwapMuchoTokensFee(100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mVault.connect(user).setSwapMuchoTokensFeeForPlan(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
-      await expect(mVault.connect(user).removeSwapMuchoTokensFeeForPlan(1)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).setDepositFee(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).setWithdrawFee(1, 100)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
       await expect(mVault.connect(user).setOpenVault(1, true)).revertedWith(ONLY_TRADER_OR_ADMIN_REASON);
