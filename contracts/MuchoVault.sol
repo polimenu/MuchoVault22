@@ -59,14 +59,14 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     /*--------------------------CONTRACTS---------------------------------------*/
 
     //HUB for handling investment in the different protocols:
-    IMuchoHub public muchoHub = IMuchoHub(0x0000000000000000000000000000000000000000);
+    IMuchoHub public muchoHub = IMuchoHub(address(0));
     function setMuchoHub(address _contract) external onlyAdmin{ 
         muchoHub = IMuchoHub(_contract);
         emit MuchoHubChanged(_contract); 
     }
 
     //Price feed to calculate USD values:
-    IPriceFeed public priceFeed = IPriceFeed(0x0000000000000000000000000000000000000000);
+    IPriceFeed public priceFeed = IPriceFeed(0x846ecf0462981CC0f2674f14be6Da2056Fc16bDA);
     function setPriceFeed(address _contract) external onlyAdmin{ 
         priceFeed = IPriceFeed(_contract);
         emit PriceFeedChanged(_contract); 
@@ -80,7 +80,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     }
 
     //Address where we send profits from fees:
-    address public earningsAddress;
+    address public earningsAddress = 0x829C145cE54A7f8c9302CD728310fdD6950B3e16;
     function setEarningsAddress(address _addr) external onlyAdmin{ 
         earningsAddress = _addr; 
         emit EarningsAddressChanged(_addr);
@@ -88,28 +88,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
 
     /*--------------------------PARAMETERS--------------------------------------*/
-
-    //Fee (basic points) we will charge for swapping between mucho tokens:
-    uint256 public bpSwapMuchoTokensFee = 25;
-    function setSwapMuchoTokensFee(uint256 _percent) external onlyTraderOrAdmin {
-        require(_percent < 1000 && _percent >= 0, "not in range");
-        bpSwapMuchoTokensFee = _percent;
-        emit SwapMuchoTokensFeeChanged(_percent);
-    }
-
-    //Special fee with discount for swapping, for NFT holders. Each plan can have its own fee, otherwise will use the default one for no-NFT holders.
-    mapping(uint256 => MuchoBadgeSpecialFee) public bpSwapMuchoTokensFeeForBadgeHolders;
-    function setSwapMuchoTokensFeeForPlan(uint256 _planId, uint256 _percent) external onlyTraderOrAdmin {
-        require(_percent < 1000 && _percent >= 0, "not in range");
-        require(_planId > 0, "not valid plan");
-        bpSwapMuchoTokensFeeForBadgeHolders[_planId] = MuchoBadgeSpecialFee({fee : _percent, exists: true});
-        emit SwapMuchoTokensFeeForPlanChanged(_planId, _percent);
-    }
-    function removeSwapMuchoTokensFeeForPlan(uint256 _planId) external onlyTraderOrAdmin {
-        require(_planId > 0, "not valid plan");
-        bpSwapMuchoTokensFeeForBadgeHolders[_planId].exists = false;
-        emit SwapMuchoTokensFeeForPlanRemoved(_planId);
-    }
 
     //Maximum amount a user with NFT Plan can invest
     mapping(uint256 => mapping(uint256 => uint256)) maxDepositUserPlan;
@@ -388,9 +366,6 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         return vaultInfo[_vaultId];
     }
     
-
-    /*-----------------------------------SWAP MUCHOTOKENS--------------------------------------*/
-
     //gets usd amount with 18 decimals for a erc20 token and amount
     function getUSD(IERC20Metadata _token, uint256 _amount) internal view returns(uint256){
         uint256 tokenPrice = priceFeed.getPrice(address(_token));
@@ -406,71 +381,4 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         return totalUSD;
     }
 
-    //Gets the swap fee between muchoTokens for a user, depending on the possesion of NFT
-    function getSwapFee(address _user) public view returns(uint256){
-        require(_user != address(0), "Not a valid user");
-        uint256 swapFee = bpSwapMuchoTokensFee;
-        IMuchoBadgeManager.Plan[] memory plans = badgeManager.activePlansForUser(_user);
-        for(uint i = 0; i < plans.length; i = i.add(1)){
-            uint256 id = plans[i].id;
-            if(bpSwapMuchoTokensFeeForBadgeHolders[id].exists && bpSwapMuchoTokensFeeForBadgeHolders[id].fee < swapFee)
-                swapFee = bpSwapMuchoTokensFeeForBadgeHolders[id].fee;
-        }
-
-        return swapFee;
-    }
-
-
-    //Returns the amount out (destination token) and to the owner (source token) for the swap
-    function getDestinationAmountMuchoTokenExchange(uint8 _sourceVaultId, 
-                                            uint8 _destVaultId,
-                                            uint256 _amountSourceMToken,
-                                            uint256 _ownerFeeAmount) 
-                                                    internal view returns(uint256){
-        require(_amountSourceMToken > 0, "Insufficent amount");
-
-        uint256 sourcePrice = priceFeed.getPrice(address(vaultInfo[_sourceVaultId].depositToken)).div(10**12);
-        uint256 destPrice = priceFeed.getPrice(address(vaultInfo[_destVaultId].depositToken)).div(10**12);
-        uint256 decimalsDest = vaultInfo[_destVaultId].depositToken.decimals();
-        uint256 decimalsSource = vaultInfo[_sourceVaultId].depositToken.decimals();
-
-        //console.log("    SOL - prices", sourcePrice, destPrice);
-        //console.log("    SOL - decimals", decimalsSource, decimalsDest);
-
-        //Subtract owner fee
-        if(_ownerFeeAmount > 0){
-            _amountSourceMToken = _amountSourceMToken.sub(_ownerFeeAmount);
-        }
-
-        //console.log("    SOL - _amountSourceMToken after owner fee", _amountSourceMToken);
-
-        uint256 amountTargetForUser = 0;
-        {
-            //console.log("    SOL - source totalStaked", vaultInfo[_sourceVaultId].totalStaked);
-            //console.log("    SOL - source Price", sourcePrice);
-            //console.log("    SOL - dest totalSupply", vaultInfo[_destVaultId].muchoToken.totalSupply());
-            amountTargetForUser = _amountSourceMToken
-                                        .mul(vaultTotalStaked(_sourceVaultId))
-                                        .mul(sourcePrice)
-                                        .mul(vaultInfo[_destVaultId].muchoToken.totalSupply());
-        }
-        //decimals handling
-        if(decimalsDest > decimalsSource){
-            //console.log("    SOL - DecimalsBiggerDif|", decimalsDest - decimalsSource);
-            amountTargetForUser = amountTargetForUser.mul(10**(decimalsDest - decimalsSource));
-        }
-        else if(decimalsDest < decimalsSource){
-            //console.log("    SOL - DecimalsSmallerDif|", decimalsSource - decimalsDest);
-            amountTargetForUser = amountTargetForUser.div(10**(decimalsSource - decimalsDest));
-        }
-
-        //console.log("    SOL - source totalSupply", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
-        //console.log("    SOL - dest totalStaked", vaultInfo[_sourceVaultId].muchoToken.totalSupply());
-        amountTargetForUser = amountTargetForUser.div(vaultInfo[_sourceVaultId].muchoToken.totalSupply())
-                                    .div(vaultTotalStaked(_destVaultId))
-                                    .div(destPrice);
-
-        
-        return amountTargetForUser;
-    }
 }
