@@ -106,7 +106,9 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         /*console.log("    SOL MuchoHub - Moving", _amount);
         console.log("    SOL MuchoHub - Staked source", protSource.getTotalStaked(_token));*/
         require(protSource.getTokenStaked(_token) >= _amount, "MuchoHub: Cannot move more than staked");
-        protSource.withdrawAndSend(_token, _amount, _protocolDestination);
+        uint256 pending = _amount.sub(protSource.notInvestedTrySend(_token, _amount, _protocolDestination));
+        if(pending > 0)
+            protSource.withdrawAndSend(_token, pending, _protocolDestination);
         emit InvestmentMoved(_token, _amount, _protocolSource, _protocolDestination);
     }
 
