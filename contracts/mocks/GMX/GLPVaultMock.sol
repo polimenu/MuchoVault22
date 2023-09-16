@@ -8,6 +8,7 @@ import "../../../interfaces/IMuchoToken.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "hardhat/console.sol";
 
 contract GLPVaultMock is IGLPVault {
 
@@ -40,6 +41,7 @@ contract GLPVaultMock is IGLPVault {
         //console.log("    SOL - Receiving tokens destination, amount", address(this), _amount);
         //IERC20(_token).safeTransferFrom(_sender, address(this), _amount);
         //We burn so we do not change the glp price
+
         IMuchoToken(_token).burn(_sender, _amount);
     }
 
@@ -61,13 +63,14 @@ contract GLPVaultMock is IGLPVault {
 
     function usdgAmounts(address _token) external view returns (uint256){
         uint256 decimals = IERC20Metadata(_token).decimals();
+        //console.log("   SOL USDGAMOUNTS", _token, IERC20(_token).balanceOf(address(this)), priceFeed.getPrice(_token));
         return IERC20(_token).balanceOf(address(this)).mul(priceFeed.getPrice(_token)).div(10**(30-18+decimals));
     }
 
-    uint256 mintFee = 25;
+    uint256 mintFee = 15;
     function setMintFee(uint256 _fee) external{ mintFee = _fee; }
 
-    uint256 burnFee = 30;
+    uint256 burnFee = 10;
     function setBurnFee(uint256 _fee) external{ burnFee = _fee; }
 
     function getFeeBasisPoints(address _token, uint256 _usdgDelta, uint256 _feeBasisPoints, uint256 _taxBasisPoints, bool _increment) external view returns (uint256){

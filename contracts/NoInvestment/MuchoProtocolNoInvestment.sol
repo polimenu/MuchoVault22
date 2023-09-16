@@ -52,8 +52,9 @@ contract MuchoProtocolNoInvestment is IMuchoProtocol, MuchoRoles, ReentrancyGuar
             return balance;
         }
     }
-    function notifyDeposit(address _token, uint256 _amount) onlyOwner external{
+    function deposit(address _token, uint256 _amount) onlyOwner external{
         tokenList.add(_token);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     function setRewardPercentages(RewardSplit memory _split) onlyTraderOrAdmin external{}

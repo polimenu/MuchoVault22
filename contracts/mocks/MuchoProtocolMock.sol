@@ -135,8 +135,9 @@ contract MuchoProtocolMock is IMuchoProtocol {
         return amountToTransfer;
     }
 
-    function notifyDeposit(address _token, uint256 _amount) external {
+    function deposit(address _token, uint256 _amount) external {
         tokenList.add(_token);
+        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
     }
 
     function setRewardPercentages(RewardSplit memory _split) external {}

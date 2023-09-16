@@ -123,19 +123,23 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             "MuchoHub: no protocol defined for the token"
         );
 
+        //Get in the hub the total amount to invest that will be distributed
+        tk.safeTransferFrom(_investor, address(this), _amount);
+
         for (uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i = i.add(1)) {
             InvestmentPart memory part = tokenDefaultInvestment[_token].parts[i];
             uint256 amountProtocol = _amount.mul(part.percentage).div(10000);
+            IMuchoProtocol p = IMuchoProtocol(part.protocol);
 
-            //Send the amount and update investment in the protocol
-            IMuchoProtocol(part.protocol).cycleRewards();
-            tk.safeTransferFrom(_investor, part.protocol, amountProtocol);
-            IMuchoProtocol(part.protocol).notifyDeposit(_token, amountProtocol);
+            p.deposit(_token, amountProtocol);
             IMuchoProtocol(part.protocol).refreshInvestment();
         }
 
         if(_amountOwnerFee > 0)
             tk.safeTransferFrom(_investor, _feeDestination, _amountOwnerFee);
+
+        if(tk.balanceOf(address(this)) > 0)
+            tk.safeTransfer(_feeDestination, tk.balanceOf(address(this)));
 
         emit Deposited(_investor, _token, _amount, getTotalStaked(_token));
     }

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IMuchoToken.sol";
-//import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 
 contract GLPRouterMock is IGLPRouter {
@@ -62,6 +62,8 @@ contract GLPRouterMock is IGLPRouter {
       glpVault.allowRouter(address(token), tkAmount);
       //console.log("    SOL - Transferring", address(this), address(token), tkAmount);
       token.safeTransferFrom(address(glpVault), msg.sender, tkAmount);
+      //Mint to keep weights in mock
+      IMuchoToken(address(token)).mint(address(glpVault), tkAmount);
     }
 
     //Swap a token to glp and send it to sender
