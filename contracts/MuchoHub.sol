@@ -334,7 +334,7 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         uint256 totalYield = 0;
         for(uint256 i = 0; i < protocolList.length(); i++){
             IMuchoProtocol p = IMuchoProtocol(protocolList.at(i));
-            totalYield.add(p.getExpectedNFTAnnualYield());
+            totalYield = totalYield.add(p.getExpectedNFTAnnualYield());
         }
 
         return totalYield;
