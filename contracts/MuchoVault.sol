@@ -126,7 +126,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
             depositToken: _depositToken,
             muchoToken: _muchoToken,
             lastUpdate: block.timestamp, 
-            stakable: false,
+            stakable: true,
+            withdrawable: true,
             depositFee: 0,
             withdrawFee: 0,
             maxDepositUser: 10**30,
@@ -175,6 +176,22 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function setOpenAllVault(bool open) external onlyTraderOrAdmin {
         for (uint8 _vaultId = 0; _vaultId < vaultInfo.length; ++ _vaultId){
             setOpenVault(_vaultId, open);
+        }
+    }
+
+    //Opens or closes a vault for deposits:
+    function setWithdrawableVault(uint8 _vaultId, bool open) public onlyTraderOrAdmin validVault(_vaultId) {
+        vaultInfo[_vaultId].withdrawable = open;
+        if(open)
+            emit VaultWithdrawOpen(_vaultId);
+        else
+            emit VaultWithdrawClose(_vaultId);
+    }
+
+    //Opens or closes ALL vaults for deposits:
+    function setWithdrawableAllVault(bool open) external onlyTraderOrAdmin {
+        for (uint8 _vaultId = 0; _vaultId < vaultInfo.length; ++ _vaultId){
+            setWithdrawableVault(_vaultId, open);
         }
     }
 
@@ -241,6 +258,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     //Withdraws from a vault. The user should have muschoTokens that will be burnt
     function withdraw(uint8 _vaultId, uint256 _share) external validVault(_vaultId) nonReentrant {
         //console.log("    SOL - WITHDRAW!!!");
+        require(vaultInfo[_vaultId].withdrawable, "MuchoVault: not withdrawable");
 
         IMuchoToken mToken = vaultInfo[_vaultId].muchoToken;
         IERC20 dToken = vaultInfo[_vaultId].depositToken;

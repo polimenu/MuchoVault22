@@ -28,6 +28,8 @@ interface IMuchoVault{
     event VaultAdded(IERC20Metadata depositToken, IMuchoToken muchoToken);
     event VaultOpen(uint8 vaultId);
     event VaultClose(uint8 vaultId);
+    event VaultWithdrawOpen(uint8 vaultId);
+    event VaultWithdrawClose(uint8 vaultId);
     event DepositFeeChanged(uint8 vaultId, uint16 fee);
     event WithdrawFeeChanged(uint8 vaultId, uint16 fee);
     event VaultUpdated(uint8 vaultId, uint256 amountBefore, uint256 amountAfter);

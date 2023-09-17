@@ -10,6 +10,7 @@ struct VaultInfo {
         uint256 lastUpdate;         //Last time the totalStaked amount was updated
 
         bool stakable;          //Inverstors can deposit
+        bool withdrawable;      //Investors can withdraw (for emergencies)
 
         uint16 depositFee;
         uint16 withdrawFee;
