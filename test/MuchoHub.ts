@@ -144,7 +144,10 @@ describe("MuchoHubTest", async function () {
     });
 
     it("Should work when depositing with default protocol with 100% share", async function () {
+
+      console.log("****START*****");
       const { hub, users, protocols, tokens, aprs, notInvested, priceFeed } = await loadFixture(deployMuchoHub);
+      console.log("Init done");
       const token = tokens.weth;
       const AMOUNT = 3.1453;
       const DECIMALS = await token.decimals();
@@ -165,6 +168,7 @@ describe("MuchoHubTest", async function () {
       expect(await hub.getTotalNotInvested(token.address)).equal(0, "HUB balance is not 0 before depositing");
 
       //Make deposit
+      console.log("Depositing");
       await token.connect(users.user).approve(hub.address, bnAmount);
       await hub.connect(users.owner).depositFrom(users.user.address, token.address, bnAmount, 0, users.admin.address);
 

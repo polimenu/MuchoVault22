@@ -136,7 +136,7 @@ describe("MuchoVaultCompleteTest", async function () {
 
     //Deploy rest of mocks
     const glpVault = await (await ethers.getContractFactory("GLPVaultMock")).deploy(glp.address);
-    const glpPriceFeed = await (await ethers.getContractFactory("GLPPriceFeedMock")).deploy(usdc.address, weth.address, wbtc.address, glpVault.address, glp.address);
+    const glpPriceFeed = await (await ethers.getContractFactory("GLPPriceFeedMock")).deploy(usdc.address, usdt.address, dai.address, weth.address, wbtc.address, glpVault.address, glp.address);
     await glpPriceFeed.addToken(usdt.address, toBN(1, 30));
     await glpPriceFeed.addToken(dai.address, toBN(1, 30));
     await glpVault.setPriceFeed(glpPriceFeed.address);
@@ -310,50 +310,77 @@ describe("MuchoVaultCompleteTest", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
       const AMOUNT = 1000 * 10 ** 6;
       const token = await ethers.getContractAt("ERC20", tk[0].t);
+
+      const iniBal = fromBN(await token.balanceOf(user.address), 6);
+      console.log("init token balance in user", iniBal);
+
       //console.log("Amount0", AMOUNT);
       await mVault.setOpenVault(0, true);
-      await token.transfer(user.address, AMOUNT);
       await token.connect(user).approve(mHub.address, AMOUNT);
       await mVault.connect(user).deposit(0, AMOUNT);
-      expect((await mVault.connect(user).vaultTotalStaked(0))).to.equal(AMOUNT);
-      expect(await mVault.connect(user).vaultTotalStaked(0)).to.equal(AMOUNT);
+
+
+      console.log("after deposit token balance in user", fromBN(await token.balanceOf(user.address), 6));
+
+
+      const depFee = await mVault.getDepositFee(0, AMOUNT);
+      console.log("DEPOSIT FEE TOTAL", depFee);
+      console.log("DEPOSIT FEE MUCHO", (await mVault.getVaultInfo(0)).depositFee );
+      const expectedStaked = AMOUNT - depFee;
+      expect((await mVault.connect(user).vaultTotalStaked(0))).to.equal(expectedStaked);
 
       const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await mtoken.connect(user).balanceOf(user.address)).to.equal(AMOUNT);
+      expect(await mtoken.connect(user).balanceOf(user.address)).to.equal(expectedStaked);
+
+      const bal = fromBN(await token.balanceOf(user.address), 6);
+      expect(bal).equals(iniBal - fromBN(AMOUNT, 6));
     });
 
     it("Should deposit 300 usdc with 1,5% fee", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
-      const INITIAL_AMOUNT = 7135 * 10 ** 6;
-      const DEPOSIT = 1562 * 10 ** 6;
-      const FEE = 0.015;
+      const INITIAL_AMOUNT = 7135;
+      const DEPOSIT = 1562;
+      const FEEPC = 1.5;
       const token = await ethers.getContractAt("ERC20", tk[0].t);
+      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
       /*console.log("1Amount", AMOUNT);
       console.log("1CURRENT", CURRENT);
       console.log("1CURRENT_HUB", CURRENT_HUB);
       console.log("1DEPOSITED", DEPOSITED);*/
-      await mVault.setDepositFee(0, FEE * 10000);
+      const depositFeeProtocols = fromBN(await mVault.getDepositFee(0, toBN(DEPOSIT, 6)), 6);
+      console.log("depositFeeProtocols", depositFeeProtocols);
+      await mVault.setDepositFee(0, FEEPC * 100);
+      const depositFee = fromBN(await mVault.getDepositFee(0, toBN(DEPOSIT, 6)), 6);
+      console.log("depositFee", depositFee);
+      const expectedFee = DEPOSIT - (DEPOSIT - depositFeeProtocols) * (1-FEEPC/100);
+      expect(Math.round(10000*depositFee)).equals(Math.round(expectedFee*10000));
       await mVault.setOpenVault(0, true);
-      await token.transfer(user.address, INITIAL_AMOUNT);
+      await token.transfer(user.address, toBN(INITIAL_AMOUNT, 6));
       const initBalance = fromBN(await token.balanceOf(user.address), await token.decimals());
       console.log("Init user balance:", initBalance);
-      await token.connect(user).approve(mHub.address, DEPOSIT);
-      await mVault.connect(user).deposit(0, DEPOSIT);
-      expect((await mVault.vaultTotalStaked(0))).to.equal(Math.round(DEPOSIT * (1 - FEE)));
-      expect(await mVault.vaultTotalStaked(0)).to.equal(Math.round(DEPOSIT * (1 - FEE)));
+      await token.connect(user).approve(mHub.address, toBN(DEPOSIT, 6));
+      console.log("mToken before deposit", fromBN(await mtoken.balanceOf(user.address), 6));
+      await mVault.connect(user).deposit(0, toBN(DEPOSIT, 6));
+      console.log("mToken after deposit", fromBN(await mtoken.balanceOf(user.address), 6));
+      expect(Math.round(fromBN(await mVault.vaultTotalStaked(0), 6-4))).to.equal(Math.round(10000*(DEPOSIT - depositFee)));
 
-      const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
-      expect(await mtoken.balanceOf(user.address)).to.equal(Math.round(DEPOSIT * (1 - FEE)), "User muchotoken balance after deposit is unexpected");
-      expect(await token.balanceOf(user.address)).to.equal(toBN(initBalance, await token.decimals()).sub(DEPOSIT), "User token balance after deposit is unexpected");
+      const mTokenBal = fromBN(await mtoken.balanceOf(user.address), 6);
+      const mTokenExp = DEPOSIT - depositFee;
+      expect(mTokenBal).to.equal(mTokenExp, "User muchotoken balance after deposit is unexpected");
+
+      const dTokenBal = fromBN(await token.balanceOf(user.address), 6);
+      const expBal = initBalance - DEPOSIT;
+      expect(dTokenBal).to.equal(expBal, "User token balance after deposit is unexpected");
     });
   });
 
   describe("Withdraw", async () => {
     it("Should withdraw 167 usdc", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
-      const DEPOSITED = 1000 * 10 ** 6;
-      const WITHDRAWN = 167 * 10 ** 6;
-      const EXPECTED = DEPOSITED - WITHDRAWN;
+      const DEPOSITED = 1000; const DEPOSITEDBN = toBN(DEPOSITED, 6);
+      const WITHDRAWN = 167; const WITHDRAWBN = toBN(WITHDRAWN, 6);
+      const FEE = fromBN(await mVault.getDepositFee(0, toBN(DEPOSITED, 6)), 6);
+      const EXPECTED = DEPOSITED - WITHDRAWN - FEE;
       const token = await ethers.getContractAt("ERC20", tk[0].t);
       const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
       /*console.log("Amount", AMOUNT);
@@ -361,16 +388,19 @@ describe("MuchoVaultCompleteTest", async function () {
       console.log("DEPOSITED", DEPOSITED);*/
       await mVault.setWithdrawFee(0, 0);
       await mVault.setOpenVault(0, true);
-      await token.transfer(user.address, DEPOSITED);
-      await token.connect(user).approve(mHub.address, DEPOSITED);
-      await mVault.connect(user).deposit(0, DEPOSITED);
-      const initBalance = await token.balanceOf(user.address);
-      await mVault.connect(user).withdraw(0, WITHDRAWN);
-      expect((await mVault.vaultTotalStaked(0))).to.equal(EXPECTED);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
+      await token.transfer(user.address, DEPOSITEDBN);
+      await token.connect(user).approve(mHub.address, DEPOSITEDBN);
+      await mVault.connect(user).deposit(0, DEPOSITEDBN);
+      const initBalance = fromBN(await token.balanceOf(user.address), 6);
+      await mVault.connect(user).withdraw(0, WITHDRAWBN);
+      const staked = fromBN(await mVault.vaultTotalStaked(0), 6);
+      expect(staked).to.equal(EXPECTED);
 
-      expect(await token.balanceOf(user.address)).to.equal(initBalance.add(WITHDRAWN), "Unexpected user balance of token after withdraw");
-      expect(await mtoken.balanceOf(user.address)).to.equal(EXPECTED, "Unexpected user balance of muchotoken after withdraw");
+      const tBal = fromBN(await token.balanceOf(user.address), 6);
+      expect(tBal).to.equal(initBalance + WITHDRAWN, "Unexpected user balance of token after withdraw");
+
+      const mBal = fromBN(await mtoken.balanceOf(user.address), 6);
+      expect(mBal).to.equal(EXPECTED, "Unexpected user balance of muchotoken after withdraw");
 
       /*console.log("2CURRENT", await mVault.vaultTotalStaked(0));
       console.log("2CURRENT_HUB", await mHub.getTotalStaked(tk[0].t));*/
@@ -378,28 +408,44 @@ describe("MuchoVaultCompleteTest", async function () {
 
     it("Should withdraw 135 usdc with 0,45% fee", async function () {
       const { mVault, mHub, tk, pFeed, admin, trader, user } = await loadFixture(deployMuchoVault);
-      const DEPOSITED = 1000 * 10 ** 6;
-      const WITHDRAWN = 135 * 10 ** 6;
-      const FEE = 45;
+      const DEPOSITED = 1000;
+      const DEPOSITEDBN = toBN(DEPOSITED, 6);
+      const WITHDRAWN = 135;
+      const WITHDRAWNBN = toBN(WITHDRAWN, 6);
+      const WFEE = 0.45;
       const token = await ethers.getContractAt("ERC20", tk[0].t);
       const mtoken = await ethers.getContractAt("MuchoToken", tk[0].m);
       /*console.log("Amount", AMOUNT);
       console.log("CURRENT", CURRENT);
       console.log("DEPOSITED", DEPOSITED);*/
-      await mVault.setWithdrawFee(0, FEE);
+      await mVault.setWithdrawFee(0, toBN(WFEE, 2));
       await mVault.setOpenVault(0, true);
-      const initBalance = await token.balanceOf(user.address);
-      await token.transfer(user.address, DEPOSITED);
-      await token.connect(user).approve(mHub.address, DEPOSITED);
-      await mVault.connect(user).deposit(0, DEPOSITED);
-      await mVault.connect(user).withdraw(0, WITHDRAWN);
-      const EXPECTED = DEPOSITED - WITHDRAWN;
-      expect((await mVault.vaultTotalStaked(0))).to.equal(EXPECTED);
-      expect(await mVault.vaultTotalStaked(0)).to.equal(EXPECTED);
 
-      const EXPECTED_BALANCE = initBalance.add(WITHDRAWN * (1 - FEE / 10000));
-      expect(await token.balanceOf(user.address)).to.equal(EXPECTED_BALANCE);
-      expect(await mtoken.balanceOf(user.address)).to.equal(EXPECTED);
+      const initBalance = fromBN(await token.balanceOf(user.address), 6);
+      console.log("Init user balance", initBalance);
+
+      await token.connect(user).approve(mHub.address, DEPOSITEDBN);
+      const dFee = fromBN(await mVault.getDepositFee(0, DEPOSITEDBN), 6);
+      await mVault.connect(user).deposit(0, DEPOSITEDBN);
+
+      console.log("After dep user balance", fromBN(await token.balanceOf(user.address), 6));
+
+      await mVault.connect(user).withdraw(0, WITHDRAWNBN);
+
+      console.log("After wdw user balance", fromBN(await token.balanceOf(user.address), 6));
+      
+      const EXPECTED = DEPOSITED - dFee - WITHDRAWN;
+
+      const staked = fromBN(await mVault.vaultTotalStaked(0), 6);
+      expect(staked).to.equal(EXPECTED);
+
+      const EXPECTED_BALANCE = initBalance - DEPOSITED + (WITHDRAWN * (1 - WFEE/100));
+
+      const tBal = fromBN(await token.balanceOf(user.address), 6);
+      expect(tBal).to.equal(EXPECTED_BALANCE);
+
+      const mBal = fromBN(await mtoken.balanceOf(user.address), 6);
+      expect(mBal).to.equal(EXPECTED);
     });
   });
 
@@ -414,6 +460,8 @@ describe("MuchoVaultCompleteTest", async function () {
       const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
       const glpRR = (await ethers.getContractAt("GLPRewardRouterMock", await mGmx.glpRewardRouter()));
       await glpRR.setApr(APR * 100);
+      await mGmx.updateGlpApr(APR * 100);
+      await mGmx.updateGlpWethMintFee(15);
       const rr:RewardSplitStruct = {ownerPercentage: OWNER*100, NftPercentage: NFT*100};
       await mGmx.setRewardPercentages(rr);
       await mVault.setOpenAllVault(true);
@@ -463,7 +511,7 @@ describe("MuchoVaultCompleteTest", async function () {
       /*console.log("timeDeposited", timeDeposited);
       console.log("timeAfter", timeAfter);
       console.log("lapse", lapse);*/
-      const EXPECTEDS = [327.1864, 0.194297, 0.0127266]
+      const EXPECTEDS = [327.0384, 0.19395, 0.0126975]
       const TOLERANCE = 0.01;
       for(var i = 0; i < DEPOSITS.length; i++){
         const token = await getToken(i);

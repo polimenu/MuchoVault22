@@ -40,7 +40,6 @@ import "../interfaces/IMuchoRewardRouter.sol";
 import "../interfaces/IMuchoBadgeManager.sol";
 import "../interfaces/IMuchoToken.sol";
 import "../interfaces/IMuchoVault.sol";
-//import "hardhat/console.sol";
 
 
 

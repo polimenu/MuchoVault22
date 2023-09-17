@@ -211,7 +211,8 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
         // Remove the deposit fee and calc amount after fee
         uint256 ownerDepositFee = _amount.mul(vaultInfo[_vaultId].depositFee).div(10000);
-        uint256 amountAfterFee = _amount.sub(ownerDepositFee);
+        uint256 amountAfterOwnerFee = _amount.sub(ownerDepositFee);
+        uint256 amountAfterAllFees = _amount.sub(getDepositFee(_vaultId, _amount));
 
         /*console.log("    SOL - depositFee", vaultInfo[_vaultId].depositFee);
         console.log("    SOL - ownerDepositFee", ownerDepositFee);
@@ -219,17 +220,17 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
 
         // If no muchoToken exists, mint it 1:1 to the amount put in
         if (totalShares == 0 || totalStakedTokens == 0) {
-            mToken.mint(msg.sender, amountAfterFee);
+            mToken.mint(msg.sender, amountAfterAllFees);
         } 
         // Calculate and mint the amount of muchoToken the depositToken is worth. The ratio will change overtime with APR
         else {
-            uint256 what = amountAfterFee.mul(totalShares).div(totalStakedTokens);
+            uint256 what = amountAfterAllFees.mul(totalShares).div(totalStakedTokens);
             mToken.mint(msg.sender, what);
         }
 
         //console.log("    SOL - TOTAL STAKED AFTER DEP 0", vaultInfo[_vaultId].totalStaked);
         //console.log("    SOL - EXECUTING DEPOSIT FROM IN HUB");
-        muchoHub.depositFrom(msg.sender, address(dToken), amountAfterFee, ownerDepositFee, earningsAddress);
+        muchoHub.depositFrom(msg.sender, address(dToken), amountAfterOwnerFee, ownerDepositFee, earningsAddress);
         //console.log("    SOL - TOTAL STAKED AFTER DEP 1", vaultInfo[_vaultId].totalStaked);
         //console.log("    SOL - EXECUTING UPDATE VAULT");
         //console.log("    SOL - TOTAL STAKED AFTER DEP 2", vaultInfo[_vaultId].totalStaked);
@@ -269,7 +270,7 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     /*---------------------------------INFO VIEWS---------------------------------------*/
 
     //Gets the deposit fee amount, adding owner's deposit fee (in this contract) + protocol's one
-    function getDepositFee(uint8 _vaultId, uint256 _amount) external view returns(uint256){
+    function getDepositFee(uint8 _vaultId, uint256 _amount) public view returns(uint256){
         uint256 fee = _amount.mul(vaultInfo[_vaultId].depositFee).div(10000);
         return fee.add(muchoHub.getDepositFee(address(vaultInfo[_vaultId].depositToken), _amount.sub(fee)));
     }

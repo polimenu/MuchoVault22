@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "../../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../../interfaces/GMX/IGLPVault.sol";
 import "../../../interfaces/IMuchoToken.sol";
-import "hardhat/console.sol";
 
 
 contract GLPRouterMock is IGLPRouter {

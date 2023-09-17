@@ -124,13 +124,16 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
         );
 
         //Get in the hub the total amount to invest that will be distributed
+       //console.log("   SOL - depositFrom amount", _amount);
+       //console.log("   SOL - depositFrom investor balance before", tk.balanceOf(_investor));
         tk.safeTransferFrom(_investor, address(this), _amount);
+       //console.log("   SOL - depositFrom investor balance after", tk.balanceOf(_investor));
 
         for (uint256 i = 0; i < tokenDefaultInvestment[_token].parts.length; i = i.add(1)) {
             InvestmentPart memory part = tokenDefaultInvestment[_token].parts[i];
             uint256 amountProtocol = _amount.mul(part.percentage).div(10000);
             IMuchoProtocol p = IMuchoProtocol(part.protocol);
-
+            tk.approve(part.protocol, amountProtocol);
             p.deposit(_token, amountProtocol);
             IMuchoProtocol(part.protocol).refreshInvestment();
         }
@@ -142,6 +145,8 @@ contract MuchoHub is IMuchoHub, MuchoRoles, ReentrancyGuard {
             tk.safeTransfer(_feeDestination, tk.balanceOf(address(this)));
 
         emit Deposited(_investor, _token, _amount, getTotalStaked(_token));
+
+       //console.log("   SOL - depositFrom investor balance end", tk.balanceOf(_investor));
     }
 
     function withdrawFrom(address _investor, address _token, uint256 _amount, uint256 _amountOwnerFee, address _feeDestination) external onlyOwner nonReentrant {
