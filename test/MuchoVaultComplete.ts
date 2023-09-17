@@ -45,6 +45,7 @@ describe("MuchoVaultCompleteTest", async function () {
 
     //ToDo - Deploy actual contracts
     const mBadge = await deployContract("MuchoBadgeManagerMock");
+    const mRR = await deployContract("MuchoRewardRouterMock");
     const f = await ethers.getContractFactory("PriceFeedMock");
     const pFeed = await f.deploy(usdc.address, weth.address, wbtc.address);
 
@@ -68,6 +69,7 @@ describe("MuchoVaultCompleteTest", async function () {
     await mVault.setPriceFeed(pFeed.address);
     await mVault.setMuchoHub(mHub.address);
     await mVault.setBadgeManager(mBadge.address);
+    await mVault.setMuchoRewardRouter(mRR.address);
 
     //Create Vaults:
     await mVault.addVault(usdc.address, musdc.address);

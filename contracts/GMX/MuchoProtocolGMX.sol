@@ -395,6 +395,10 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     /*---------------------------Methods: token handling--------------------------------*/
 
+    function convertToGLP(address _token) external onlyTraderOrAdmin  {
+        swaptoGLP(IERC20(_token).balanceOf(address(this)), _token);
+    }
+
     //Sets manually the desired weight for a vault
     function setWeight(address _token, uint256 _percent) external onlyTraderOrAdmin {
         require(_percent < 7000 && _percent > 0, "MuchoProtocolGmx.setWeight: not in range");
@@ -853,21 +857,23 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     /*----------------------------GLP mint and token conversion------------------------------*/
 
     function swapGLPto( uint256 _amountGlp, address token, uint256 min_receive) private returns (uint256) {
-        if(_amountGlp > 0)
-            return
-                glpRouter.unstakeAndRedeemGlp(
-                    token,
-                    _amountGlp,
-                    min_receive,
-                    address(this)
-                );
-        
+        if(_amountGlp > 0){
+            uint256 glpBal = fsGLP.balanceOf(address(this));
+            if(_amountGlp > glpBal)
+                _amountGlp = glpBal;
+
+            return glpRouter.unstakeAndRedeemGlp(token, _amountGlp, min_receive, address(this));
+        }
         return 0;
     }
 
     //Mint GLP from token
     function swaptoGLP(uint256 _amount, address token) private returns (uint256) {
         if(_amount > 0){
+            uint256 bal = IERC20(token).balanceOf(address(this));
+            if(_amount > bal)
+                _amount = bal;
+
             IERC20(token).safeIncreaseAllowance(poolGLP, _amount);
             uint256 resGlp = glpRouter.mintAndStakeGlp(token, _amount, 0, 0);
 
