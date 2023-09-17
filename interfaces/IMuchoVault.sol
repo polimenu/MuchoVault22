@@ -36,6 +36,7 @@ interface IMuchoVault{
     event MuchoHubChanged(address newContract);
     event PriceFeedChanged(address newContract);
     event BadgeManagerChanged(address newContract);
+    event MuchoRewardRouterChanged(address newContract);
     event EarningsAddressChanged(address newAddr);
     event AprUpdatePeriodChanged(uint256 secs);
 

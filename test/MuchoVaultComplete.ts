@@ -266,7 +266,8 @@ describe("MuchoVaultCompleteTest", async function () {
         const v = await mVault.getVaultInfo(i);
         expect(v.depositToken).to.equal(tk[i].t);
         expect(v.muchoToken).to.equal(tk[i].m);
-        expect(v.stakable).to.false;
+        expect(v.stakable).to.true;
+        expect(v.withdrawable).to.true;
         expect(await mVault.vaultTotalStaked(i)).to.equal(0);
       }
     });
