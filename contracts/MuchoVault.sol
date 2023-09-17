@@ -36,6 +36,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../interfaces/IMuchoVault.sol";
 import "../interfaces/IMuchoHub.sol";
 import "../interfaces/IMuchoBadgeManager.sol";
+import "../interfaces/IMuchoRewardRouter.sol";
 import "../interfaces/IPriceFeed.sol";
 import "./MuchoRoles.sol";
 import "../lib/UintSafe.sol";
@@ -77,6 +78,13 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
     function setBadgeManager(address _contract) external onlyAdmin { 
         badgeManager = IMuchoBadgeManager(_contract);
         emit BadgeManagerChanged(_contract);
+    }
+
+    //Reward router to add users:
+    IMuchoRewardRouter public muchoRewardRouter = IMuchoRewardRouter(0xC439d29ee3C7fa237da928AD3A3D6aEcA9aA0717);
+    function setMuchoRewardRouter(address _contract) external onlyAdmin { 
+        muchoRewardRouter = IMuchoRewardRouter(_contract);
+        emit MuchoRewardRouterChanged(_contract);
     }
 
     //Address where we send profits from fees:
@@ -251,6 +259,11 @@ contract MuchoVault is IMuchoVault, MuchoRoles, ReentrancyGuard{
         //console.log("    SOL - TOTAL STAKED AFTER DEP 1", vaultInfo[_vaultId].totalStaked);
         //console.log("    SOL - EXECUTING UPDATE VAULT");
         //console.log("    SOL - TOTAL STAKED AFTER DEP 2", vaultInfo[_vaultId].totalStaked);
+
+        //add user to get rewards if eventually adquires the nft
+        (uint multiplierNft,) = muchoRewardRouter.getUserMultiplierAndPlan(msg.sender);
+        if(multiplierNft > 0)
+            muchoRewardRouter.addUserIfNotExists(msg.sender); 
 
         emit Deposited(msg.sender, _vaultId, _amount, vaultTotalStaked(_vaultId));
     }
