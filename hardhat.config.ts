@@ -15,3 +15,4 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+require('hardhat-deploy');
