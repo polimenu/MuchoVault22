@@ -195,7 +195,7 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
 
 
     //Withdraws the rewards the user has for every token
-    function withdraw() public nonReentrant{
+    function withdraw() public {
         for(uint256 i = 0; i < rewardTokenList.length(); i = i.add(1)){
             withdrawToken(rewardTokenList.at(i));
         }
@@ -223,7 +223,7 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
             -total usd ponderated with plans multipliers
     */
     function getTotalAndUsersUSDValueWithMultiplier() internal view returns(uint256, uint256[] memory){
-        uint256[] memory uUSD;
+        uint256[] memory uUSD = new uint256[](userAddressList.length());
         uint256 totalUSD = 0;
 
         for(uint i = 0; i < userAddressList.length(); i = i.add(1)){
@@ -234,9 +234,8 @@ contract MuchoRewardRouter is ReentrancyGuard, IMuchoRewardRouter, MuchoRoles {
                 uUSD[i] = userUSD;
                 totalUSD = totalUSD.add(userUSD);
             }
-            else{
+            else
                 uUSD[i] = 0;
-            }
 
         }
 
