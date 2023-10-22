@@ -548,7 +548,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return tokenToUsd(_token, getTokenStaked(_token));
     }
 
-    //Desired weight for a token vault
+    //Invested weight for a token vault
     function getTokenWeight(address _token) external view returns (uint256) {
         //console.log("   SOL - getTokenWeight", _token);
         uint256 totUsd = getTotalInvestedUSD();
