@@ -854,6 +854,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //ToDo - token un MLP is not invested until it is staked!
     //ToDo - unstake and sell MLP
+    //ToDo - deposit and withdrawal fee
 
 
     /*-------------------------------MUX ORDERBOOK SUPPORT FUNCTIONS-----------------------------------------*/
