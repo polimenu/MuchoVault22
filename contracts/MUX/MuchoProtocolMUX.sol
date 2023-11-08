@@ -18,6 +18,7 @@ import "../../interfaces/MUX/IMuxPriceFeed.sol";
 import "../../interfaces/MUX/IMlpRewardRouter.sol";
 import "../../interfaces/MUX/IMuxOrderBook.sol";
 import "../../interfaces/MUX/IMlpVester.sol";
+import "../../interfaces/MUX/IvMlp.sol";
 import "../MuchoRoles.sol";
 
 contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
@@ -76,7 +77,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Pool for 1inch to move MCB to WETH
     uint256[] public poolsMCBtoWETH = [1260341638500800461528502024617555594674146880755];
-    function updatePoolsMCBtoWETH(uint256[] _pools) external onlyTraderOrAdmin{ poolsMCBtoWETH = _pools; }
+    function updatePoolsMCBtoWETH(uint256[] calldata _pools) external onlyTraderOrAdmin{ poolsMCBtoWETH = _pools; }
 
     //MLP Yield APR from MUX --> used to estimate our APR
     uint256 public mlpApr;
@@ -94,9 +95,9 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //List of allowed tokens
     EnumerableSet.AddressSet tokenList;
-    mapping(address => uint256) public tokenToAssetId;
+    mapping(address => uint8) public tokenToAssetId;
     mapping(uint256 => address) public assetIdToToken;
-    function addToken(address _token, uint256 _assetId) external onlyAdmin {
+    function addToken(address _token, uint8 _assetId) external onlyAdmin {
         tokenList.add(_token);
         tokenToAssetId[_token] = _assetId;
         assetIdToToken[_assetId] = _token;
@@ -111,7 +112,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Relation between a token and secondary for weight computing (eg. USDT and DAI can be secondary for USDC)
     mapping(address => EnumerableSet.AddressSet) tokenToSecondaryTokens;
-    function addSecondaryToken(address _mainToken, address _secondary, uint256 _assetId) external onlyAdmin { 
+    function addSecondaryToken(address _mainToken, address _secondary, uint8 _assetId) external onlyAdmin { 
         tokenToSecondaryTokens[_mainToken].add(_secondary);
         tokenToAssetId[_secondary] = _assetId;
         assetIdToToken[_assetId] = _secondary;
@@ -220,9 +221,9 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Vested MLP
-    IERC20 public vMLP = IERC20(0xBCF8c124975DE6277D8397A3Cad26E2333620226);
+    IvMlp public vMLP = IvMlp(0xBCF8c124975DE6277D8397A3Cad26E2333620226);
     function updatevMLP(address _new) external onlyAdmin {
-        vMLP = IERC20(_new);
+        vMLP = IvMlp(_new);
     }
 
     //MCB
@@ -240,7 +241,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Interfaces to interact with MUX protocol and other externals:
 
     //One inch router
-    IOneInchRouter public oneInchAggregationRouter = IOneInchRouter(0x1111111254eeb25477b68fb85ed929f73a960582);
+    IOneInchRouter public oneInchAggregationRouter = IOneInchRouter(0x1111111254EEB25477B68fb85Ed929f73A960582);
     function setOneInchAggregationRouter(IOneInchRouter _router) external onlyAdmin{ oneInchAggregationRouter = _router; }
 
     //IMLPRewardRouter
@@ -256,7 +257,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //MUX Order Book
-    IMuxOrderBook public muxOrderBook = IMuxOrderBook(0xa19fd5ab6c8dcffa2a295f78a5bb4ac543aaf5e3);
+    IMuxOrderBook public muxOrderBook = IMuxOrderBook(0xa19fD5aB6C8DCffa2A295F78a5Bb4aC543AAF5e3);
     function setMuxOrderBook(IMuxOrderBook _new) external onlyAdmin {
         muxOrderBook = _new;
     }
@@ -306,7 +307,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         uint256 wethRewards = WETH.balanceOf(address(this)).sub(wethInit);
         if(wethRewards > 0){
             //use compoundPercentage to calculate the total amount and swap to MLP
-            uint256 compoundAmount = wethRewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000);
+            uint96 compoundAmount = cast96Cap(wethRewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000));
             //console.log("    SOL - Compound amount", compoundAmount);
             if (compoundProtocol == this) {
                 swaptoMLP(compoundAmount, address(WETH));
@@ -427,7 +428,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     /*---------------------------Methods: token handling--------------------------------*/
 
     function convertToMLP(address _token) external onlyTraderOrAdmin  {
-        swaptoMLP(IERC20(_token).balanceOf(address(this)), _token);
+        swaptoMLP(cast96(IERC20(_token).balanceOf(address(this))), _token);
     }
 
     //Sets manually the desired weight for a vault
@@ -462,12 +463,12 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     
     function getMlpDepositFee(address _token, uint256 _amount) public view returns(uint256){
         //ToDo
-        return -1;
+        return 1;
     }
 
     function getMlpWithdrawalFee(address _token, uint256 _amount) public view returns(uint256){
         //ToDo
-        return -1;
+        return 1;
     }
 
     //Amount of token that is invested
@@ -672,9 +673,9 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
         //Invested less than desired:
         if (notInvestedBP > desiredNotInvestedPercentage && notInvestedBP.sub(desiredNotInvestedPercentage) > minBasisPointsMove) {
-            uint256 amountToMove = notInvestedBalance.sub(
+            uint96 amountToMove = cast96Cap(notInvestedBalance.sub(
                 desiredNotInvestedPercentage.mul(totalBalance).div(10000)
-            );
+            ));
             swaptoMLP(amountToMove, _minTokenByWeight);
         }
         //Invested more than desired:
@@ -689,7 +690,7 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //Invested less than desired:
         if (_newUSDInvested > _currentUSDInvested && _newUSDInvested.sub(_currentUSDInvested).mul(10000).div(_totalTokenUSD) > minBasisPointsMove) {
             uint256 usdToMove = _newUSDInvested.sub(_currentUSDInvested);
-            uint256 amountToMove = usdToToken(usdToMove, _token);
+            uint96 amountToMove = cast96Cap(usdToToken(usdToMove, _token));
             swaptoMLP(amountToMove, _token);
         }
 
@@ -786,11 +787,12 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Mint MLP from token
-    function swaptoMLP(uint256 _amount, address token) private {
+    function swaptoMLP(uint96 _amount, address token) private {
         if(_amount > 0){
             uint256 bal = IERC20(token).balanceOf(address(this));
-            if(_amount > bal)
-                _amount = bal;
+            if(_amount > bal){
+                _amount = cast96(bal);
+            }
 
             IERC20(token).safeIncreaseAllowance(address(muxOrderBook), _amount);
             muxOrderBook.placeLiquidityOrder(tokenToAssetId[token], _amount, true);
@@ -852,12 +854,27 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         order.placeOrderTime = uint32(bytes4(data[1] << 160));
     }
 
-    function getAmountsInPendingMLPOrders() internal view returns(mapping(address => int256) tokenAmount) {
+    mapping(address => int256) public amountsInPendingMlpOrders;
+    function updateAmountsInPendingMLPOrders() internal {
         uint256 numOrders = muxOrderBook.getOrderCount();
-        bytes32[3][] memory orders = muxOrderBook.getOrders(0, numOrders);
+        (bytes32[3][] memory orders,) = muxOrderBook.getOrders(0, numOrders);
         for(uint256 i = 0; i < orders.length; i++){
-            LiquidityOrder order = decodeLiquidityOrder(orders[i]);
-            tokenAmount[assetIdToToken[order.assetId]].add(order.rawAmount);
+            LiquidityOrder memory order = decodeLiquidityOrder(orders[i]);
+            amountsInPendingMlpOrders[assetIdToToken[order.assetId]] = amountsInPendingMlpOrders[assetIdToToken[order.assetId]] + int256(uint256(order.rawAmount));
         }
+    }
+
+
+    uint256 private MAX_UINT96 = 2**96-1;
+    function cast96(uint256 integer) internal view returns(uint96 res){
+        require(integer <= MAX_UINT96, "Overflow casting to uint96");
+        res = uint96(integer);
+    }
+
+    function cast96Cap(uint256 integer) internal view returns(uint96 res){
+        if(integer <= MAX_UINT96)
+            res = uint96(MAX_UINT96);
+        else
+            res = uint96(integer);
     }
 }

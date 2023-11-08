@@ -5,5 +5,5 @@ import "../../interfaces/IPriceFeed.sol";
 
 interface IMuxPriceFeed is IPriceFeed {
 
-    function getMUXprice() external view returns (uint256);
+    function getMLPprice() external view returns (uint256);
 }
