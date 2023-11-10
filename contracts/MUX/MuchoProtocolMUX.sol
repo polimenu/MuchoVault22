@@ -832,7 +832,10 @@ contract MuchoProtocolMUX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //ToDo - token un MLP is not invested until it is staked!
     //ToDo - unstake and sell MLP
-    //ToDo - deposit and withdrawal fee
+    //ToDo - mint and burn fee
+    //ToDo - unstaking and selling MLP is tricky:
+    //          1) you can have MLP blocked if you are vesting MUX
+    //          2) liquidity order can take 15 min to execute
 
 
     /*-------------------------------MUX ORDERBOOK SUPPORT FUNCTIONS-----------------------------------------*/
