@@ -49,10 +49,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    struct GmPool{
+    struct GmPool {
         address gmAddress;
         address gmStorage;
-        address 
+        address long;
+        address short;
+        uint256 longWeight;
     }
 
     function protocolName() public pure returns (string memory) {
@@ -63,7 +65,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return
             "Performs a delta neutral strategy against GM tokens yield from GMX protocol (v2)";
     }
-
 
     function init() external onlyAdmin {
         glpApr = 1800;
@@ -88,6 +89,9 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Client APRs for each token
     mapping(address => uint256) public aprToken;
+
+    //GM Pools
+    GmPool[] public gmPools;
 
     /*---------------------------Parameters--------------------------------*/
 
