@@ -49,6 +49,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    struct GmPool{
+        address gmAddress;
+        address gmStorage;
+        address 
+    }
+
     function protocolName() public pure returns (string memory) {
         return "GMX V2 delta-neutral strategy";
     }
@@ -58,33 +64,16 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             "Performs a delta neutral strategy against GM tokens yield from GMX protocol (v2)";
     }
 
+
     function init() external onlyAdmin {
         glpApr = 1800;
-        glpWethMintFee = 25;
+        gmWethMintFee = 25;
         compoundProtocol = IMuchoProtocol(address(this));
-        rewardSplit = RewardSplit({NftPercentage: 1000, ownerPercentage: 2000});
+        rewardSplit = RewardSplit({NftPercentage: 2000, ownerPercentage: 2000});
         grantRole(CONTRACT_OWNER, 0x7832fAb4F1d23754F89F30e5319146D16789c088);
         tokenList.add(0xaf88d065e77c8cC2239327C5EDb3A432268e5831); //USDC
-        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(
-            0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8
-        );
-        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(
-            0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1
-        );
-        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(
-            0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
-        );
-        tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(
-            0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F
-        );
         tokenList.add(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1); //WETH
-        tokenToSecondaryTokens[0x82aF49447D8a07e3bd95BD0d56f35241523fBab1].add(
-            0xf97f4df75117a78c1A5a0DBb814Af92458539FB4
-        );
-        tokenToSecondaryTokens[0x82aF49447D8a07e3bd95BD0d56f35241523fBab1].add(
-            0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0
-        );
-        tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f);
+        tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f); //WBTC
     }
 
     /*---------------------------Variables--------------------------------*/
@@ -413,14 +402,26 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //console.log("    SOL - withdrawAndSend amount desired to extract in usd", tokenToUsd(_token, _amount));
         //console.log("    SOL - withdrawAndSend amount to extract in usd", tokenToUsd(_token, _amount.mul(100000 + slippage)));
 
-        //Total GLP to unstake
-        uint256 glpOut = tokenToGlp(
-            _token,
-            _amount.mul(100000 + slippage).div(100000)
-        );
-        swapGLPto(glpOut, _token, _amount);
+        uint256 usdOut = tokenToUsd(_token, _amount);
+        (
+            uint256 totalInvestedUsd,
+            ,
+            uint256[] tokenInvesteUsd
+        ) = getTotalUSDWithTokensUsd();
+
+        for (uint256 i = 0; i < tokenList.length; i++) {
+            uint256 usdOutFromToken = (usdOut * tokenInvestedUsd[i]) /
+                totalInvestedUsd;
+            uint256 usdToWithdraw = usdOutFromToken.mul(100000 + slippage).div(
+                100000
+            );
+            uint256 gmTokenToWithdraw = (usdToWithdraw *
+                gmTokenUsdValue(token[i], 10000)) / 10000;
+            swapGMTokenTo(tokenList.at(i), _token, gmTokenToWithdraw);
+        }
 
         amountStaked[_token] = amountStaked[_token].sub(_amount);
+
         IERC20(_token).safeTransfer(_target, _amount);
         emit WithdrawnInvested(
             _token,
@@ -440,7 +441,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     ) external onlyOwner nonReentrant {
         require(
             validToken(_token),
-            "MuchoProtocolGMX.deposit: token not supported"
+            "MuchoProtocolGMXv2.deposit: token not supported"
         );
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         uint256 amountAfterFees = _amount.sub(getDepositFee(_token, _amount));
@@ -483,12 +484,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             rewardSplit.ownerPercentage;
 
         //console.log("    SOL - getExpectedAPR investedPctg compoundPctg", investedPctg, compoundPctg);
-        //console.log("    SOL - getExpectedAPR glpApr glpWethMintFee", glpApr, glpWethMintFee);
+        //console.log("    SOL - getExpectedAPR glpApr gmWethMintFee", glpApr, gmWethMintFee);
 
         return
-            glpApr
+            gmApr[_token]
                 .mul(compoundPctg)
-                .mul(10000 - glpWethMintFee)
+                .mul(10000 - gmWethMintFee)
                 .mul(investedPctg)
                 .div(10 ** 12);
     }
@@ -505,42 +506,54 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
     }
 
-    function getExpectedNFTAnnualYield() external view returns (uint256) {
-        return
-            getTotalInvestedUSD()
-                .mul(glpApr)
+    function getExpectedNFTAnnualYield()
+        external
+        view
+        returns (uint256 totalYield)
+    {
+        for (uint256 i = 0; i < tokenList.length(); i++) {
+            totalYield += getTotalInvestedUSD()
+                .mul(gmApr[tokenList.at(i)])
                 .mul(rewardSplit.NftPercentage)
                 .div(100000000);
+        }
     }
 
     /*---------------------------Methods: token handling--------------------------------*/
 
-    function convertToGLP(address _token) external onlyTraderOrAdmin {
-        swaptoGLP(IERC20(_token).balanceOf(address(this)), _token);
+    function convertToGM(
+        address _token,
+        uint256 _gmIndex
+    ) external onlyTraderOrAdmin {
+        swapToGm(
+            tokenList.at(i),
+            IERC20(_token).balanceOf(address(this)),
+            _token
+        );
     }
 
-    //Sets manually the desired weight for a vault
+    //Sets manually the desired weight for a GM pool
     function setWeight(
         address _token,
         uint256 _percent
     ) external onlyTraderOrAdmin {
         require(
             _percent < 7000 && _percent > 0,
-            "MuchoProtocolGmx.setWeight: not in range"
+            "MuchoProtocolGmxv2.setWeight: not in range"
         );
         require(
             manualModeWeights,
-            "MuchoProtocolGmx.setWeight: automatic mode"
+            "MuchoProtocolGmxv2.setWeight: automatic mode"
         );
-        glpWeight[_token] = _percent;
+        gmTokenLongWeight[_token] = _percent;
     }
 
-    function updateGlpWeights() external onlyTraderOrAdmin {
-        _updateGlpWeights();
+    function updateGmWeights() external onlyTraderOrAdmin {
+        _updateGmWeights();
     }
 
-    //Updates desired weights from GLP in automatic mode:
-    function _updateGlpWeights() internal {
+    //Updates desired weights from GMX in automatic mode:
+    function _updateGmWeights() internal {
         //console.log("    ***********SOL updateGlpWeights*************");
 
         if (manualModeWeights) {
