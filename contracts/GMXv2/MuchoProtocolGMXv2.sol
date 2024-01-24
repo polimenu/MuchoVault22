@@ -52,9 +52,11 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     struct GmPool {
         address gmAddress;
         address gmStorage;
-        address long;
         address short;
+        address long;
         uint256 longWeight;
+        bool enabled;
+        uint256 gmApr;
     }
 
     function protocolName() public pure returns (string memory) {
@@ -81,28 +83,65 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Last time rewards collected and values refreshed
     uint256 public lastUpdate = block.timestamp;
 
-    //Desired weight of long token for every GM token
-    mapping(address => uint256) public gmTokenLongWeight;
-
     //Supported staked investment for every token
     mapping(address => uint256) public amountStaked;
 
     //Client APRs for each token
     mapping(address => uint256) public aprToken;
 
-    //GM Pools
-    GmPool[] public gmPools;
-
     /*---------------------------Parameters--------------------------------*/
 
-    //GM token Yield APR from GMX --> used to estimate our APR
-    mapping(address => uint256) public gmApr;
+    //GM Pools and operations
+    GmPool[] public gmPools;
 
+    function addPool(
+        address _addr,
+        address _storage,
+        address _short,
+        address _long,
+        bool _enabled
+    ) external onlyAdmin {
+        require(
+            !existsEnabledPool(_addr, _long, _short),
+            "MuchoProtocolGmxV2: pool already exists"
+        );
+        require(
+            oracleHas(_long),
+            "MuchoProtocolGmxV2: Oracle does not control long token"
+        );
+        require(
+            oracleHas(_short),
+            "MuchoProtocolGmxV2: Oracle does not control short token"
+        );
+        require(
+            oracleHas(_addr),
+            "MuchoProtocolGmxV2: Oracle does not control GM token"
+        );
+
+        uint256 longWeigth = calculateLongWeight(_addr, _long, _short);
+        gmPools.add(
+            GmPool({
+                gmAddress: _addr,
+                gmStorage: _storage,
+                short: _short,
+                long: _long,
+                longWeight: longWeight,
+                enabled: _enabled,
+                gmApr: 0
+            })
+        );
+    }
+
+    function setEnabledPool(uint256 _pool, bool _enabled) external onlyAdmin {
+        gmPools[_pool].enabled = _enabled;
+    }
+
+    //GM token Yield APR from GMX --> used to estimate our APR
     function updateGmApr(
-        address _gmToken,
+        uint256 _pool,
         uint256 _apr
     ) external onlyTraderOrAdmin {
-        gmApr[_gmToken] = _apr;
+        gmPools[_pool].gmApr = _apr;
         _updateAprs();
     }
 
@@ -114,7 +153,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         _updateAprs();
     }
 
-    //List of allowed tokens
+    //List of allowed tokens to deposit
     EnumerableSet.AddressSet tokenList;
 
     function addToken(address _token) external onlyAdmin {
@@ -129,16 +168,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return tk;
     }
 
-    //Relation between a token and the GM token where it acts as a long collateral
-    mapping(address => address) tokenToGMToken;
-
-    function setGmTokenForToken(
-        address _longToken,
-        address _gmToken
-    ) external onlyAdmin {
-        tokenToGMToken[_longToken] = _gmToken;
-    }
-
     //Slippage we use when selling GM, to have a security gap with mint fees
     uint256 public slippage = 50;
 
@@ -148,7 +177,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Address where we send the owner profit
-    address public earningsAddress = 0x829C145cE54A7f8c9302CD728310fdD6950B3e16; //ToDo
+    address public earningsAddress = 0x66C9269d75AB52941E325D9c1E3b156A325e8a90;
 
     function setEarningsAddress(address _earnings) external onlyAdmin {
         require(_earnings != address(0), "not valid");
@@ -272,17 +301,6 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         EsGMX = IERC20(_new);
     }
 
-    //Staked GLP
-    EnumerableSet.AddressSet public gmTokens; //ToDo Structure with storage, address, long and short??
-
-    function addGmToken(address _new) external onlyAdmin {
-        gmTokens.add(_new);
-    }
-
-    function delGmToken(address _addr) external onlyAdmin {
-        gmTokens.remove(_addr);
-    }
-
     //WETH for the rewards
     IERC20 public WETH = IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
 
@@ -359,6 +377,11 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         _updateAprs();
     }
 
+    //For safety reasons, function to withdraw any token that fell off here by mistake
+    function transferToken(address _token, address_to) external onlyAdmin {
+        IERC20(_token).transfer(_to, IERC20(_token).balanceOf(address(this)));
+    }
+
     //Withdraws a token amount from the not invested part. Withdraws the maximum possible up to the desired amount
     function notInvestedTrySend(
         address _token,
@@ -402,10 +425,16 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             "Cannot withdraw more than invested"
         );
 
-        //console.log("    SOL - withdrawAndSend", _token, _amount);
-        //console.log("    SOL - withdrawAndSend amount desired to extract in usd", tokenToUsd(_token, _amount));
-        //console.log("    SOL - withdrawAndSend amount to extract in usd", tokenToUsd(_token, _amount.mul(100000 + slippage)));
+        uint256[] usdInvested = new uint256[](gmPools.length);
+        uint256 totalUsdInvested;
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (gmPools[i].long == _token || gmPools[i].short == _token) {
+                usdInvested[i] = gmPoolInvestedUsd(i);
+                totalUsdInvested += usdInvested[i];
+            }
+        }
 
+        /*
         uint256 usdOut = tokenToUsd(_token, _amount);
         (
             uint256 totalInvestedUsd,
@@ -433,7 +462,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             _amount,
             getTokenStaked(_token)
         );
-        _updateAprs();
+        _updateAprs();*/
 
         //console.log("    SOL - withdrawAndSend not invested after wd", getTokenUSDNotInvested(_token));
     }
