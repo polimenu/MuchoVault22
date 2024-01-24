@@ -425,12 +425,27 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             "Cannot withdraw more than invested"
         );
 
+        //Calc usd investment per pool and total usd investment, to ponderate:
         uint256[] usdInvested = new uint256[](gmPools.length);
         uint256 totalUsdInvested;
         for (uint256 i = 0; i < gmPools.length; i++) {
             if (gmPools[i].long == _token || gmPools[i].short == _token) {
                 usdInvested[i] = gmPoolInvestedUsd(i);
                 totalUsdInvested += usdInvested[i];
+            }
+        }
+
+        //Withdraw:
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (usdInvested[i] > 0) {
+                uint256 usdOutFromToken = (usdOut * usdInvested[i]) /
+                    totalUsdInvested;
+                uint256 usdToWithdraw = usdOutFromToken
+                    .mul(100000 + slippage)
+                    .div(100000);
+                uint256 gmTokenAmountToWithdraw = (usdToWithdraw *
+                    gmTokenUsdValue(i, 10000)) / 10000;
+                swapGMTokenTo(i, _token, gmTokenAmountToWithdraw);
             }
         }
 
