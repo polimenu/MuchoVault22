@@ -13,17 +13,17 @@ contract MuxPriceFeed is IMuxPriceFeed, MuchoRoles {
     GLPpool pool = GLPpool(0x489ee077994B6658eAfA855C308275EAd8097C4A);
 
     //MUX price is pushed off-chain
-    uint256 muxPrice;
-    function setMUXPrice(uint256 _price) external onlyTraderOrAdmin{
-        muxPrice = _price;
+    uint256 mlpPrice;
+    function setMLPPrice(uint256 _price) external onlyTraderOrAdmin{
+        mlpPrice = _price;
     }
 
     function updatePool(GLPpool _pool) external onlyAdmin{
         pool = _pool;
     }
 
-    function getMUXprice() external view returns (uint256){
-        return muxPrice;
+    function getMLPprice() external view returns (uint256){
+        return mlpPrice;
     }
 
 
