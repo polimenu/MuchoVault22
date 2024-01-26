@@ -35,6 +35,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "../../interfaces/IMuchoProtocol.sol";
+import "../../lib/GmPool.sol";
 import "../../interfaces/IPriceFeed.sol";
 import "../../interfaces/IMuchoRewardRouter.sol";
 import "../../interfaces/GMX/IGLPRouter.sol";
@@ -43,22 +44,11 @@ import "../../interfaces/GMX/IGLPPriceFeed.sol";
 import "../../interfaces/GMX/IGLPVault.sol";
 import "../MuchoRoles.sol";
 
-contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
+contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeMath for uint64;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
-
-    struct GmPool {
-        address gmAddress;
-        address short;
-        address long;
-        uint256 longWeight;
-        bool enabled;
-        uint256 gmApr;
-        bytes32 positiveSwapFee;
-        bytes32 negativeSwapFee;
-    }
 
     function protocolName() public pure returns (string memory) {
         return "GMX V2 delta-neutral strategy";
@@ -830,6 +820,15 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         ) = getTotalUSDWithTokensUsd();
         */
         _updateGmWeights();
+
+        /*
+        1.- Por cada pool, con el long que tenemos, calcular cuánto short necesitamos
+        2.- Si basta el short, p'alante (respetando el min not invested en cada pool)
+        3.- Si no basta el short, repartir el short en cada pool:
+                mínimo entre short necesitado por el pool, y short total / num pools
+                iterar hasta acabar el short o que quede el min not invested
+        */
+
 
         //Only can do delta neutral if all tokens are present
         if (tokenUsd[0] == 0 || tokenUsd[1] == 0 || tokenUsd[2] == 0) {
