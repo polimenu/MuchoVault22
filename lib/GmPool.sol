@@ -10,3 +10,8 @@ struct GmPool {
     bytes32 positiveSwapFee;
     bytes32 negativeSwapFee;
 }
+
+struct TokenAmount {
+    address token;
+    uint256 amountUsd;
+}

@@ -29,20 +29,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "../../interfaces/IMuchoProtocol.sol";
-import "../../lib/GmPool.sol";
-import "../../interfaces/IPriceFeed.sol";
-import "../../interfaces/IMuchoRewardRouter.sol";
-import "../../interfaces/GMX/IGLPRouter.sol";
-import "../../interfaces/GMX/IRewardRouter.sol";
-import "../../interfaces/GMX/IGLPPriceFeed.sol";
-import "../../interfaces/GMX/IGLPVault.sol";
-import "../MuchoRoles.sol";
+import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
+import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
+import '../../interfaces/IMuchoProtocol.sol';
+import '../../lib/GmPool.sol';
+import '../../interfaces/IPriceFeed.sol';
+import '../../interfaces/IMuchoRewardRouter.sol';
+import '../../interfaces/GMX/IGLPRouter.sol';
+import '../../interfaces/GMX/IRewardRouter.sol';
+import '../../interfaces/GMX/IGLPPriceFeed.sol';
+import '../../interfaces/GMX/IGLPVault.sol';
+import '../../interfaces/GMXv2/IMuchoProtocolGMXv2Logic.sol';
+import '../MuchoRoles.sol';
 
 contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeMath for uint256;
@@ -51,12 +52,11 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     function protocolName() public pure returns (string memory) {
-        return "GMX V2 delta-neutral strategy";
+        return 'GMX V2 delta-neutral strategy';
     }
 
     function protocolDescription() public pure returns (string memory) {
-        return
-            "Performs a delta neutral strategy against GM tokens yield from GMX protocol (v2)";
+        return 'Performs a delta neutral strategy against GM tokens yield from GMX protocol (v2)';
     }
 
     function init() external onlyAdmin {
@@ -68,28 +68,9 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         tokenList.add(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1); //WETH
         tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f); //WBTC
         //GM WETH-USDC
-        gmPools.add(
-            GmPool({
-                gmAddress: 0x70d95587d40A2caf56bd97485aB3Eec10Bee6336,
-                short: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
-                long: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
-                longWeight: 5000,
-                enabled: true,
-                gmApr: 1000
-            })
-        );
-
+        addPool(0x70d95587d40A2caf56bd97485aB3Eec10Bee6336, 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, true, 25, 25);
         //GM WBTC-USDC
-        gmPools.add(
-            GmPool({
-                gmAddress: 0x47c031236e19d024b42f8AE6780E44A573170703,
-                short: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831,
-                long: 0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f,
-                longWeight: 5000,
-                enabled: true,
-                gmApr: 1000
-            })
-        );
+        addPool(0x47c031236e19d024b42f8AE6780E44A573170703, 0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f, true, 25, 25);
     }
 
     /*---------------------------Variables--------------------------------*/
@@ -107,36 +88,18 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //GM Pools and operations
     GmPool[] public gmPools;
 
-    function addPool(
-        address _addr,
-        address _short,
-        address _long,
-        bool _enabled,
-        bytes32 positiveSwapFee,
-        bytes32 negativeSwapFee
-    ) external onlyAdmin {
-        require(
-            !existsEnabledPool(_addr, _long, _short),
-            "MuchoProtocolGmxV2: pool already exists"
-        );
-        require(
-            oracleHas(_long),
-            "MuchoProtocolGmxV2: Oracle does not control long token"
-        );
-        require(
-            oracleHas(_short),
-            "MuchoProtocolGmxV2: Oracle does not control short token"
-        );
-        require(
-            oracleHas(_addr),
-            "MuchoProtocolGmxV2: Oracle does not control GM token"
-        );
+    function addPool(address _addr, address _long, bool _enabled, bytes32 positiveSwapFee, bytes32 negativeSwapFee) external onlyAdmin {
+        require(!existsEnabledPool(_addr, _long), 'MuchoProtocolGmxV2: pool already exists');
+        require(oracleHas(_long), 'MuchoProtocolGmxV2: Oracle does not control long token');
+        require(oracleHas(_addr), 'MuchoProtocolGmxV2: Oracle does not control GM token');
 
-        uint256 longWeigth = calculateLongWeight(_addr, _long, _short);
+        uint256 longWeigth = calculateLongWeight(_addr, _long, shortToken);
+        require(longWeight < 9500, 'MuchoProtocolGmxV2: Long weight more than 95%');
+        require(longWeight > 500, 'MuchoProtocolGmxV2: Long less more than 5%');
+
         gmPools.add(
             GmPool({
                 gmAddress: _addr,
-                short: _short,
                 long: _long,
                 longWeight: longWeight,
                 enabled: _enabled,
@@ -152,10 +115,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //GM token Yield APR from GMX --> used to estimate our APR
-    function updateGmApr(
-        uint256 _pool,
-        uint256 _apr
-    ) external onlyTraderOrAdmin {
+    function updateGmApr(uint256 _pool, uint256 _apr) external onlyTraderOrAdmin {
         gmPools[_pool].gmApr = _apr;
         _updateAprs();
     }
@@ -187,7 +147,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public slippage = 50;
 
     function setSlippage(uint256 _slippage) external onlyTraderOrAdmin {
-        require(_slippage >= 10 && _slippage <= 1000, "not in range");
+        require(_slippage >= 10 && _slippage <= 1000, 'not in range');
         slippage = _slippage;
     }
 
@@ -195,7 +155,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     address public earningsAddress = 0x66C9269d75AB52941E325D9c1E3b156A325e8a90;
 
     function setEarningsAddress(address _earnings) external onlyAdmin {
-        require(_earnings != address(0), "not valid");
+        require(_earnings != address(0), 'not valid');
         earningsAddress = _earnings;
     }
 
@@ -209,38 +169,23 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     // Safety not-invested margin min and desired (2 decimals)
     uint256 public minNotInvestedPercentage = 250;
 
-    function setMinNotInvestedPercentage(
-        uint256 _percent
-    ) external onlyTraderOrAdmin {
-        require(
-            _percent < 9000 && _percent >= 0,
-            "MuchoProtocolGMXv2: minNotInvestedPercentage not in range"
-        );
+    function setMinNotInvestedPercentage(uint256 _percent) external onlyTraderOrAdmin {
+        require(_percent < 9000 && _percent >= 0, 'MuchoProtocolGMXv2: minNotInvestedPercentage not in range');
         minNotInvestedPercentage = _percent;
     }
 
     uint256 public desiredNotInvestedPercentage = 500;
 
-    function setDesiredNotInvestedPercentage(
-        uint256 _percent
-    ) external onlyTraderOrAdmin {
-        require(
-            _percent < 9000 && _percent >= 0,
-            "MuchoProtocolGMXv2: desiredNotInvestedPercentage not in range"
-        );
+    function setDesiredNotInvestedPercentage(uint256 _percent) external onlyTraderOrAdmin {
+        require(_percent < 9000 && _percent >= 0, 'MuchoProtocolGMXv2: desiredNotInvestedPercentage not in range');
         desiredNotInvestedPercentage = _percent;
     }
 
     //If variation against desired weight is less than this, do not move:
     uint256 public minBasisPointsMove = 100;
 
-    function setMinWeightBasisPointsMove(
-        uint256 _percent
-    ) external onlyTraderOrAdmin {
-        require(
-            _percent < 500 && _percent > 0,
-            "MuchoProtocolGMXv2: minBasisPointsMove not in range"
-        );
+    function setMinWeightBasisPointsMove(uint256 _percent) external onlyTraderOrAdmin {
+        require(_percent < 500 && _percent > 0, 'MuchoProtocolGMXv2: minBasisPointsMove not in range');
         minBasisPointsMove = _percent;
     }
 
@@ -248,7 +193,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public maxRefreshWeightLapse = 1 days;
 
     function setMaxRefreshWeightLapse(uint256 _mw) external onlyTraderOrAdmin {
-        require(_mw > 0, "MuchoProtocolGmxv2: Not valid lapse");
+        require(_mw > 0, 'MuchoProtocolGmxv2: Not valid lapse');
         maxRefreshWeightLapse = _mw;
     }
 
@@ -262,17 +207,9 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //How do we split the rewards (percentages for owner and nft holders)
     RewardSplit public rewardSplit;
 
-    function setRewardPercentages(
-        RewardSplit calldata _split
-    ) external onlyTraderOrAdmin {
-        require(
-            _split.NftPercentage.add(_split.ownerPercentage) <= 10000,
-            "MuchoProtocolGmxv2: NTF and owner fee are more than 100%"
-        );
-        rewardSplit = RewardSplit({
-            NftPercentage: _split.NftPercentage,
-            ownerPercentage: _split.ownerPercentage
-        });
+    function setRewardPercentages(RewardSplit calldata _split) external onlyTraderOrAdmin {
+        require(_split.NftPercentage.add(_split.ownerPercentage) <= 10000, 'MuchoProtocolGmxv2: NTF and owner fee are more than 100%');
+        rewardSplit = RewardSplit({NftPercentage: _split.NftPercentage, ownerPercentage: _split.ownerPercentage});
         _updateAprs();
     }
 
@@ -280,10 +217,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public additionalDepositFee = 0;
 
     function setAdditionalDepositFee(uint256 _fee) external onlyTraderOrAdmin {
-        require(
-            _fee < 20,
-            "MuchoProtocolGMXv2: setAdditionalDepositFee not in range"
-        );
+        require(_fee < 20, 'MuchoProtocolGMXv2: setAdditionalDepositFee not in range');
         additionalDepositFee = _fee;
     }
 
@@ -291,23 +225,32 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public additionalWithdrawFee = 0;
 
     function setAdditionalWithdrawFee(uint256 _fee) external onlyTraderOrAdmin {
-        require(
-            _fee < 20,
-            "MuchoProtocolGMXv2: setAdditionalWithdrawFee not in range"
-        );
+        require(_fee < 20, 'MuchoProtocolGMXv2: setAdditionalWithdrawFee not in range');
         additionalWithdrawFee = _fee;
     }
 
     //Protocol where we compound the profits
     IMuchoProtocol public compoundProtocol;
 
-    function setCompoundProtocol(
-        IMuchoProtocol _target
-    ) external onlyTraderOrAdmin {
+    function setCompoundProtocol(IMuchoProtocol _target) external onlyTraderOrAdmin {
         compoundProtocol = _target;
     }
 
     /*---------------------------Contracts--------------------------------*/
+
+    //Short token
+    IERC20 public shortToken = IERC20(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
+
+    function updateShortToken(address _new) external onlyAdmin {
+        shortToken = IERC20(_new);
+    }
+
+    //Weight logic contract
+    IMuchoProtocolGMXv2Logic public muchoGmxV2Logic;
+
+    function updateMuchoLogic(address _new) external onlyAdmin {
+        muchoGmxV2Logic = IMuchoProtocolGMXv2Logic(_new);
+    }
 
     //GMX tokens - escrowed GMX and staked GLP
     IERC20 public EsGMX = IERC20(0xf42Ae1D54fd613C9bb14810b0588FaAa09a426cA);
@@ -326,16 +269,14 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Interfaces to interact with GMX protocol
 
     //Exchange Router:
-    IGmxV2ExchangeRouter public exchangeRouter =
-        IGmxV2ExchangeRouter(0x7c68c7866a64fa2160f78eeae12217ffbf871fa8);
+    IGmxV2ExchangeRouter public exchangeRouter = IGmxV2ExchangeRouter(0x7c68c7866a64fa2160f78eeae12217ffbf871fa8);
 
     function updateRouter(address _newRouter) external onlyAdmin {
         exchangeRouter = IGmxV2ExchangeRouter(_newRouter);
     }
 
     //GMX Reward Router:
-    IRewardRouter public gmxRewardRouter =
-        IRewardRouter(0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1);
+    IRewardRouter public gmxRewardRouter = IRewardRouter(0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1);
 
     function updateRewardRouter(address _newRouter) external onlyAdmin {
         gmxRewardRouter = IRewardRouter(_newRouter);
@@ -349,8 +290,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //MuchoRewardRouter Interaction for NFT Holders
-    IMuchoRewardRouter public muchoRewardRouter =
-        IMuchoRewardRouter(0x570C2857CC624077070F7Bb1F10929aad658dA37);
+    IMuchoRewardRouter public muchoRewardRouter = IMuchoRewardRouter(0x570C2857CC624077070F7Bb1F10929aad658dA37);
 
     function setMuchoRewardRouter(address _contract) external onlyAdmin {
         muchoRewardRouter = IMuchoRewardRouter(_contract);
@@ -390,11 +330,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Withdraws a token amount from the not invested part. Withdraws the maximum possible up to the desired amount
-    function notInvestedTrySend(
-        address _token,
-        uint256 _amount,
-        address _target
-    ) public onlyOwner nonReentrant returns (uint256) {
+    function notInvestedTrySend(address _token, uint256 _amount, address _target) public onlyOwner nonReentrant returns (uint256) {
         IERC20 tk = IERC20(_token);
         uint256 balance = tk.balanceOf(address(this));
         uint256 amountToTransfer = _amount;
@@ -407,12 +343,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
         amountStaked[_token] = amountStaked[_token].sub(amountToTransfer);
         tk.safeTransfer(_target, amountToTransfer);
-        emit WithdrawnNotInvested(
-            _token,
-            _target,
-            amountToTransfer,
-            getTokenStaked(_token)
-        );
+        emit WithdrawnNotInvested(_token, _target, amountToTransfer, getTokenStaked(_token));
 
         //console.log("    SOL - notInvestedTrySend final balance", tk.balanceOf(address(this)));
 
@@ -422,15 +353,8 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Withdraws a token amount from the invested part
-    function withdrawAndSend(
-        address _token,
-        uint256 _amount,
-        address _target
-    ) external onlyOwner nonReentrant {
-        require(
-            _amount <= getTokenInvested(_token),
-            "Cannot withdraw more than invested"
-        );
+    function withdrawAndSend(address _token, uint256 _amount, address _target) external onlyOwner nonReentrant {
+        require(_amount <= getTokenInvested(_token), 'Cannot withdraw more than invested');
 
         //Calc usd investment per pool and total usd investment, to ponderate:
         (uint256[] usdP, uint256 totUsdP) = usdFromPoolsWhereTokenIs(_token);
@@ -439,52 +363,30 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         for (uint256 i = 0; i < gmPools.length; i++) {
             if (gmPools[i].enabled && usdP[i] > 0) {
                 uint256 usdOutFromPool = (usdOut * usdP[i]) / totUsdP;
-                uint256 usdToWithdraw = usdOutFromPool
-                    .mul(100000 + slippage)
-                    .div(100000);
-                uint256 gmTokenAmountToWithdraw = (usdToWithdraw *
-                    gmTokenUsdValue(i, 10000)) / 10000;
+                uint256 usdToWithdraw = usdOutFromPool.mul(100000 + slippage).div(100000);
+                uint256 gmTokenAmountToWithdraw = (usdToWithdraw * gmTokenUsdValue(i, 10000)) / 10000;
                 swapGMTokenTo(i, _token, gmTokenAmountToWithdraw);
             }
         }
     }
 
     //Notification from the HUB of a deposit
-    function deposit(
-        address _token,
-        uint256 _amount
-    ) external onlyOwner nonReentrant {
-        require(
-            validToken(_token),
-            "MuchoProtocolGMXv2.deposit: token not supported"
-        );
+    function deposit(address _token, uint256 _amount) external onlyOwner nonReentrant {
+        require(validToken(_token), 'MuchoProtocolGMXv2.deposit: token not supported');
         IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
         uint256 amountAfterFees = _amount.sub(getDepositFee(_token, _amount));
         amountStaked[_token] = amountStaked[_token].add(amountAfterFees);
-        emit DepositNotified(
-            msg.sender,
-            _token,
-            _amount,
-            amountAfterFees,
-            getTokenStaked(_token)
-        );
+        emit DepositNotified(msg.sender, _token, _amount, amountAfterFees, getTokenStaked(_token));
         //console.log("    SOL - MuchoProtocolGMX - deposited", _token, _amount, amountAfterFees);
         _updateAprs();
     }
 
     //Expected APR with current investment
-    function getExpectedAPR(
-        address _token,
-        uint256 _additionalAmount
-    ) external view returns (uint256) {
+    function getExpectedAPR(address _token, uint256 _additionalAmount) external view returns (uint256) {
         return _getExpectedAPR(_token, _additionalAmount);
     }
 
-    function _getExpectedAPR(
-        address _token,
-        uint256 _additionalAmount
-    ) internal view returns (uint256) {
-
+    function _getExpectedAPR(address _token, uint256 _additionalAmount) internal view returns (uint256) {
         //console.log("    SOL - getExpectedAPR", _token, _additionalAmount);
         uint256 sta = amountStaked[_token];
         uint256 notInv = getTokenNotInvested(_token);
@@ -492,31 +394,23 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
         if (sta < notInv || sta.add(_additionalAmount) == 0) return 0;
 
-        uint256 investedPctg = sta.sub(notInv).mul(10000).div(
-            sta.add(_additionalAmount)
-        );
-        uint256 compoundPctg = 10000 -
-            rewardSplit.NftPercentage -
-            rewardSplit.ownerPercentage;
+        uint256 investedPctg = sta.sub(notInv).mul(10000).div(sta.add(_additionalAmount));
+        uint256 compoundPctg = 10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage;
 
         //console.log("    SOL - getExpectedAPR investedPctg compoundPctg", investedPctg, compoundPctg);
         //console.log("    SOL - getExpectedAPR glpApr gmWethMintFee", glpApr, gmWethMintFee);
-        uint256 totalInv, ponderatedApr;
+        uint256 totalInv;
+        uint256 ponderatedApr;
+        bool isShortToken = (address(shortToken) == _token);
         for (uint256 i = 0; i < gmPools.length; i++) {
-            if (gmPools[i].enabled && (gmPools[i].long == _token || gmPools[i].short == _token)) {
+            if (gmPools[i].enabled && (isShortToken || gmPools[i].long == _token)) {
                 uint256 tokenInvested = poolTokenBalance(i, _token);
                 totalInv += tokenInvested;
                 ponderatedApr += tokenInvested * gmPools[i].gmApr;
             }
         }
 
-
-        return
-            (ponderatedApr / totalInv)
-                .mul(compoundPctg)
-                .mul(10000 - gmWethMintFee)
-                .mul(investedPctg)
-                .div(10 ** 12);
+        return (ponderatedApr / totalInv).mul(compoundPctg).mul(10000 - gmWethMintFee).mul(investedPctg).div(10 ** 12);
     }
 
     function updateAprs() external onlyTraderOrAdmin {
@@ -531,17 +425,10 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
     }
 
-    function getExpectedNFTAnnualYield()
-        external
-        view
-        returns (uint256 totalYield)
-    {
+    function getExpectedNFTAnnualYield() external view returns (uint256 totalYield) {
         for (uint256 i = 0; i < gmPools.length; i++) {
-            if(gmPools[i].enabled){
-                totalYield += usdInPool(i)
-                    .mul(gmPools[i].gmApr)
-                    .mul(rewardSplit.NftPercentage)
-                    .div(100000000);
+            if (gmPools[i].enabled) {
+                totalYield += usdInPool(i).mul(gmPools[i].gmApr).mul(rewardSplit.NftPercentage).div(100000000);
             }
         }
     }
@@ -560,18 +447,9 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }*/
 
     //Sets manually the desired long weight for a GM pool
-    function setLongWeight(
-        uint256 _pool,
-        uint256 _percent
-    ) external onlyTraderOrAdmin {
-        require(
-            _percent < 10000 && _percent > 0,
-            "MuchoProtocolGmxv2.setLongWeight: not in range"
-        );
-        require(
-            manualModeWeights,
-            "MuchoProtocolGmxv2.setLongWeight: automatic mode"
-        );
+    function setLongWeight(uint256 _pool, uint256 _percent) external onlyTraderOrAdmin {
+        require(_percent < 10000 && _percent > 0, 'MuchoProtocolGmxv2.setLongWeight: not in range');
+        require(manualModeWeights, 'MuchoProtocolGmxv2.setLongWeight: automatic mode');
         gmPools[i].longWeight = _percent;
     }
 
@@ -581,58 +459,59 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Updates desired weights from GMX in automatic mode:
     function _updateGmWeights() internal {
-
         if (manualModeWeights) {
             return;
         }
 
-        for(uint256 i=0; i<gmPools.length; i++){
-            if(gmPools[i].enabled){
-                uint256 longUsd = tokenToUsd(gmPools[i].long, IERC20(gmPools[i].long).balanceOf(gmPools[i].gmAddress));
-                uint256 shortUsd = tokenToUsd(gmPools[i].short, IERC20(gmPools[i].short).balanceOf(gmPools[i].gmAddress));
-                gmPools[i].longWeight = (longUsd * 10000) / (longUsd + shortUsd);
+        TokenAmount[] longUsdAmounts;
+        uint256 shortUsdAmount = getShortUSDStaked();
+
+        //List of enabled pools + longAmounts;
+        GmPool[] enabledPools;
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (gmPools[i].enabled) {
+                enabledPools.push(gmPools[i]);
+                longUsdAmounts.push(getTokenUSDStaked(gmPools[i].long));
+            }
+        }
+
+        //Ask for weights
+        (uint256[] longs, uint256[] shorts) = muchoGmxV2Logic.getTokensInvestment(gmPools, longUsdAmounts, shortUsdAmount, minNotInvested);
+
+        //Update weights
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (gmPools[i].enabled) {
+                gmPools[i].longWeight = (10000 * longs[i]) / (longs[i] + shorts[i]);
             }
         }
     }
 
     /*----------------------------Public VIEWS to get the token amounts------------------------------*/
 
-    function getDepositFee(
-        address _token,
-        uint256 _amount
-    ) public view returns (uint256) {
-        uint256 totalDepFee = getGmDepositFee(_token, _amount)
-            .add(getGmWithdrawalFee(_token, _amount))
-            .add(additionalDepositFee);
+    function getDepositFee(address _token, uint256 _amount) public view returns (uint256) {
+        uint256 totalDepFee = getGmDepositFee(_token, _amount).add(getGmWithdrawalFee(_token, _amount)).add(additionalDepositFee);
         return _amount.mul(totalDepFee).div(10000);
     }
 
-    function getWithdrawalFee(
-        address _token,
-        uint256 _amount
-    ) public view returns (uint256) {
+    function getWithdrawalFee(address _token, uint256 _amount) public view returns (uint256) {
         return _amount.mul(additionalWithdrawFee).div(10000);
     }
 
-    function getGmDepositFee(
-        address _token,
-        uint256 _amount
-    ) public view returns (uint256 fee) {
+    function getGmDepositFee(address _token, uint256 _amount) public view returns (uint256 fee) {
+        bool isShortToken = (address(shortToken) == _token);
         //Get the worst case of positive impact + negative impact fee
-        for(uint256 i=0; i<gmPools.length; i++){
-            if(gmPools[i].enabled && (gmPools[i].short == _token || gmPools[i].long == _token)){
-                uint256 poolFee = IGmxDataStore(IGmPool(gmPools[i].gmAddress).dataStore()).getUint(gmPools[i].positiveSwapFee) + IGmxDataStore(IGmPool(gmPools[i].gmAddress).dataStore()).getUint(gmPools[i].negativeSwapFee);
-                if(poolFee > fee){
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (gmPools[i].enabled && (isShortToken || gmPools[i].long == _token)) {
+                uint256 poolFee = IGmxDataStore(IGmPool(gmPools[i].gmAddress).dataStore()).getUint(gmPools[i].positiveSwapFee) +
+                    IGmxDataStore(IGmPool(gmPools[i].gmAddress).dataStore()).getUint(gmPools[i].negativeSwapFee);
+                if (poolFee > fee) {
                     fee = poolFee;
                 }
             }
         }
     }
 
-    function getGmWithdrawalFee(
-        address _token,
-        uint256 _amount
-    ) public view returns (uint256) {
+    function getGmWithdrawalFee(address _token, uint256 _amount) public view returns (uint256) {
         return 0;
     }
 
@@ -658,11 +537,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //console.log("   SOL - getTokenStaked", _token);
         //console.log("   SOL - getTokenStaked lastUpdate now", lastUpdate, block.timestamp);
         uint256 timeDiff = block.timestamp.sub(lastUpdate);
-        uint256 earn = amountStaked[_token]
-            .mul(aprToken[_token])
-            .mul(timeDiff)
-            .div(365 days)
-            .div(10000);
+        uint256 earn = amountStaked[_token].mul(aprToken[_token]).mul(timeDiff).div(365 days).div(10000);
         //console.log("   SOL - getTokenStaked staked apr", amountStaked[_token], aprToken[_token]);
 
         //console.log("   SOL - getTokenStaked timeDiff earn", timeDiff, earn);
@@ -670,11 +545,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //List of total Amount of token (invested + not) for all tokens
-    function getAllTokensStaked()
-        public
-        view
-        returns (address[] memory, uint256[] memory)
-    {
+    function getAllTokensStaked() public view returns (address[] memory, uint256[] memory) {
         address[] memory tkOut = new address[](tokenList.length());
         uint256[] memory amOut = new uint256[](tokenList.length());
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
@@ -692,9 +563,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //USD value of token that is NOT invested
-    function getTokenUSDNotInvested(
-        address _token
-    ) public view returns (uint256) {
+    function getTokenUSDNotInvested(address _token) public view returns (uint256) {
         //console.log("   SOL - getTokenUSDNotInvested", _token);
         return tokenToUsd(_token, getTokenNotInvested(_token));
     }
@@ -733,11 +602,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Total USD value for all tokens + lists of total usd and invested usd for each token
-    function getTotalUSDWithTokensUsd()
-        public
-        view
-        returns (uint256, uint256[] memory, uint256[] memory)
-    {
+    function getTotalUSDWithTokensUsd() public view returns (uint256, uint256[] memory, uint256[] memory) {
         uint256 totalUsd = 0;
         uint256[] memory tokenUsds = new uint256[](tokenList.length());
         uint256[] memory tokenInvestedUsds = new uint256[](tokenList.length());
@@ -766,8 +631,8 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
 
         //Add GM backing
-        for(uint256 i = 0; i < gmPools.length; i++){
-            if(gmPools[i].enabled){
+        for (uint256 i = 0; i < gmPools.length; i++) {
+            if (gmPools[i].enabled) {
                 totalUsd = totalUsd.add(gmBalanceToUsd(i));
             }
         }
@@ -775,16 +640,17 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return totalUsd;
     }
 
-
     /*---------------------------INTERNAL Methods--------------------------------*/
 
     //Get total USD invested from pools where a token is present in short or long:
     function usdFromPoolsWhereTokenIs(address _token) internal {
+        bool isShortToken = (address(shortToken) == _token);
+
         //Calc usd investment per pool and total usd investment, to ponderate:
         uint256[] usdInvested = new uint256[](gmPools.length);
         uint256 totalUsdInvested;
         for (uint256 i = 0; i < gmPools.length; i++) {
-            if (gmPools[i].enabled && (gmPools[i].long == _token || gmPools[i].short == _token)) {
+            if (gmPools[i].enabled && (isShortToken || gmPools[i].long == _token)) {
                 usdInvested[i] = gmPoolInvestedUsd(i);
                 totalUsdInvested += usdInvested[i];
             }
@@ -799,11 +665,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
             address token = tokenList.at(i);
 
-            uint256 earn = amountStaked[token]
-                .mul(aprToken[token])
-                .mul(timeDiff)
-                .div(365 days)
-                .div(10000);
+            uint256 earn = amountStaked[token].mul(aprToken[token]).mul(timeDiff).div(365 days).div(10000);
             amountStaked[token] = amountStaked[token].add(earn);
         }
 
@@ -812,41 +674,24 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Updates the investment part for each token according to the desired weights
     function updateTokensInvestment() internal {
+        (uint256 totalUsd, uint256[] memory tokenUsd, uint256[] memory tokenInvestedUsd) = getTotalUSDWithTokensUsd();
 
-        /*(
-            uint256 totalUsd,
-            uint256[] memory tokenUsd,
-            uint256[] memory tokenInvestedUsd
-        ) = getTotalUSDWithTokensUsd();
-        */
         _updateGmWeights();
 
-        /*
-        1.- Por cada pool, con el long que tenemos, calcular cuánto short necesitamos
-        2.- Si basta el short, p'alante (respetando el min not invested en cada pool)
-        3.- Si no basta el short, repartir el short en cada pool:
-                mínimo entre short necesitado por el pool, y short total / num pools
-                iterar hasta acabar el short o que quede el min not invested
-        */
-
-
         //Only can do delta neutral if all tokens are present
-        if (tokenUsd[0] == 0 || tokenUsd[1] == 0 || tokenUsd[2] == 0) {
-            return;
+        for (uint256 i = 0; i < tokenUsd.length; i++) {
+            if (tokenUsd[i] == 0) {
+                return;
+            }
         }
 
-        (address minTokenByWeight, uint256 minTokenUsd) = getMinTokenByWeight(
-            totalUsd,
-            tokenUsd
-        );
+        (address minTokenByWeight, uint256 minTokenUsd) = getMinTokenByWeight(totalUsd, tokenUsd);
 
         //Calculate and do move for the minimum weight token
         doMinTokenWeightMove(minTokenByWeight);
 
         //Calc new total USD
-        uint256 newTotalInvestedUsd = minTokenUsd
-            .mul(10000 - desiredNotInvestedPercentage)
-            .div(glpWeight[minTokenByWeight]);
+        uint256 newTotalInvestedUsd = minTokenUsd.mul(10000 - desiredNotInvestedPercentage).div(glpWeight[minTokenByWeight]);
 
         //console.log("    SOL updateTokensInvestment - New total invested desired", newTotalInvestedUsd, minTokenUsd, glpWeight[minTokenByWeight]);
 
@@ -855,21 +700,13 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             address token = tokenList.at(i);
 
             if (token != minTokenByWeight) {
-                doNotMinTokenMove(
-                    token,
-                    tokenUsd[i],
-                    tokenInvestedUsd[i],
-                    newTotalInvestedUsd.mul(glpWeight[token]).div(10000)
-                );
+                doNotMinTokenMove(token, tokenUsd[i], tokenInvestedUsd[i], newTotalInvestedUsd.mul(glpWeight[token]).div(10000));
             }
         }
     }
 
     //Gets the token more far away from the desired weight, will be the one more invested and will point our global investment position
-    function getMinTokenByWeight(
-        uint256 _totalUsd,
-        uint256[] memory _tokenUsd
-    ) internal view returns (address, uint256) {
+    function getMinTokenByWeight(uint256 _totalUsd, uint256[] memory _tokenUsd) internal view returns (address, uint256) {
         uint maxDiff = 0;
         uint256 minUsd;
         address minToken;
@@ -877,10 +714,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         for (uint i = 0; i < tokenList.length(); i = i.add(1)) {
             address token = tokenList.at(i);
             if (glpWeight[token] > _tokenUsd[i].mul(10000).div(_totalUsd)) {
-                uint diff = _totalUsd
-                    .mul(glpWeight[token])
-                    .div(_tokenUsd[i])
-                    .sub(10000); //glpWeight[token].sub(_tokenUsd[i].mul(10000).div(_totalUsd));
+                uint diff = _totalUsd.mul(glpWeight[token]).div(_tokenUsd[i]).sub(10000); //glpWeight[token].sub(_tokenUsd[i].mul(10000).div(_totalUsd));
                 if (diff > maxDiff) {
                     minToken = token;
                     minUsd = _tokenUsd[i];
@@ -904,24 +738,14 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //console.log("    SOL - doMinTokenWeightMove desiredNotInvestedPercentage", desiredNotInvestedPercentage);
 
         //Invested less than desired:
-        if (
-            notInvestedBP > desiredNotInvestedPercentage &&
-            notInvestedBP.sub(desiredNotInvestedPercentage) > minBasisPointsMove
-        ) {
-            uint256 amountToMove = notInvestedBalance.sub(
-                desiredNotInvestedPercentage.mul(totalBalance).div(10000)
-            );
+        if (notInvestedBP > desiredNotInvestedPercentage && notInvestedBP.sub(desiredNotInvestedPercentage) > minBasisPointsMove) {
+            uint256 amountToMove = notInvestedBalance.sub(desiredNotInvestedPercentage.mul(totalBalance).div(10000));
             //console.log("    SOL - doMinTokenWeightMove INVESTING", tokenToUsd(_minTokenByWeight, amountToMove), _minTokenByWeight);
             swaptoGLP(amountToMove, _minTokenByWeight);
         }
         //Invested more than desired:
         else if (notInvestedBP < minNotInvestedPercentage) {
-            uint256 glpAmount = tokenToGlp(
-                _minTokenByWeight,
-                desiredNotInvestedPercentage.mul(totalBalance).div(10000).sub(
-                    notInvestedBalance
-                )
-            );
+            uint256 glpAmount = tokenToGlp(_minTokenByWeight, desiredNotInvestedPercentage.mul(totalBalance).div(10000).sub(notInvestedBalance));
             //console.log("    SOL - doMinTokenWeightMove UNINVESTING GLP", tokenToUsd(_minTokenByWeight, desiredNotInvestedPercentage.mul(totalBalance).div(10000).sub(notInvestedBalance)), _minTokenByWeight);
             swapGLPto(glpAmount, _minTokenByWeight, 0);
         }
@@ -931,23 +755,12 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Moves a token which is not the min
-    function doNotMinTokenMove(
-        address _token,
-        uint256 _totalTokenUSD,
-        uint256 _currentUSDInvested,
-        uint256 _newUSDInvested
-    ) internal {
+    function doNotMinTokenMove(address _token, uint256 _totalTokenUSD, uint256 _currentUSDInvested, uint256 _newUSDInvested) internal {
         //console.log("    SOL - doNotMinTokenMove", _token, _totalTokenUSD, _currentUSDInvested);
         //console.log("    SOL - doNotMinTokenMove _newUSDInvested", _newUSDInvested);
 
         //Invested less than desired:
-        if (
-            _newUSDInvested > _currentUSDInvested &&
-            _newUSDInvested.sub(_currentUSDInvested).mul(10000).div(
-                _totalTokenUSD
-            ) >
-            minBasisPointsMove
-        ) {
+        if (_newUSDInvested > _currentUSDInvested && _newUSDInvested.sub(_currentUSDInvested).mul(10000).div(_totalTokenUSD) > minBasisPointsMove) {
             uint256 usdToMove = _newUSDInvested.sub(_currentUSDInvested);
             uint256 amountToMove = usdToToken(usdToMove, _token);
             //console.log("    SOL - doNotMinTokenMove INVESTING", usdToMove, amountToMove);
@@ -955,15 +768,9 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
         //Invested more than desired:
         else if (
-            _newUSDInvested < _currentUSDInvested &&
-            _currentUSDInvested.sub(_newUSDInvested).mul(10000).div(
-                _currentUSDInvested
-            ) >
-            minBasisPointsMove
+            _newUSDInvested < _currentUSDInvested && _currentUSDInvested.sub(_newUSDInvested).mul(10000).div(_currentUSDInvested) > minBasisPointsMove
         ) {
-            uint256 glpAmount = usdToGlp(
-                _currentUSDInvested.sub(_newUSDInvested)
-            );
+            uint256 glpAmount = usdToGlp(_currentUSDInvested.sub(_newUSDInvested));
             //console.log("    SOL - doNotMinTokenMove UNINVESTING", glpToUsd(glpAmount));
             swapGLPto(glpAmount, _token, 0);
         }
@@ -986,30 +793,18 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             //console.log("    SOL - NFT percentage", rewardSplit.NftPercentage);
             //console.log("    SOL - Owner percentage", rewardSplit.ownerPercentage);
             //use compoundPercentage to calculate the total amount and swap to GLP
-            uint256 compoundAmount = rewards
-                .mul(
-                    10000 -
-                        rewardSplit.NftPercentage -
-                        rewardSplit.ownerPercentage
-                )
-                .div(10000);
+            uint256 compoundAmount = rewards.mul(10000 - rewardSplit.NftPercentage - rewardSplit.ownerPercentage).div(10000);
             //console.log("    SOL - Compound amount", compoundAmount);
             if (compoundProtocol == this) {
                 swaptoGLP(compoundAmount, address(WETH));
             } else {
-                notInvestedTrySend(
-                    address(WETH),
-                    compoundAmount,
-                    address(compoundProtocol)
-                );
+                notInvestedTrySend(address(WETH), compoundAmount, address(compoundProtocol));
             }
 
             //console.log("    SOL - WETH after swap to glp", WETH.balanceOf(address(this)));
 
             //use stakersPercentage to calculate the amount for rewarding stakers
-            uint256 stakersAmount = rewards.mul(rewardSplit.NftPercentage).div(
-                10000
-            );
+            uint256 stakersAmount = rewards.mul(rewardSplit.NftPercentage).div(10000);
             WETH.approve(address(muchoRewardRouter), stakersAmount);
             //console.log("    SOL - dspositing amount for NFT", stakersAmount);
             muchoRewardRouter.depositRewards(address(WETH), stakersAmount);
@@ -1017,9 +812,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             //console.log("    SOL - WETH after sending to nft", WETH.balanceOf(address(this)));
 
             //send the rest to admin
-            uint256 adminAmount = rewards.sub(compoundAmount).sub(
-                stakersAmount
-            );
+            uint256 adminAmount = rewards.sub(compoundAmount).sub(stakersAmount);
             WETH.safeTransfer(earningsAddress, adminAmount);
 
             //console.log("    SOL - WETH after swap to owner", WETH.balanceOf(address(this)));
@@ -1031,110 +824,64 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         if (tokenList.contains(_token)) return true;
 
         for (uint256 i = 0; i < tokenList.length(); i = i.add(1)) {
-            if (tokenToSecondaryTokens[tokenList.at(i)].contains(_token))
-                return true;
+            if (tokenToSecondaryTokens[tokenList.at(i)].contains(_token)) return true;
         }
         return false;
     }
 
     /*----------------------------Internal token conversion methods------------------------------*/
 
-    function tokenToGlp(
-        address _token,
-        uint256 _amount
-    ) internal view returns (uint256) {
+    function tokenToGlp(address _token, uint256 _amount) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
-        return
-            _amount
-                .mul(priceFeed.getPrice(_token))
-                .div(priceFeed.getGLPprice())
-                .mul(10 ** glpDecimals)
-                .div(10 ** (decimals + 18));
+        return _amount.mul(priceFeed.getPrice(_token)).div(priceFeed.getGLPprice()).mul(10 ** glpDecimals).div(10 ** (decimals + 18));
     }
 
-    function glpToToken(
-        uint256 _amountGlp,
-        address _token
-    ) internal view returns (uint256) {
+    function glpToToken(uint256 _amountGlp, address _token) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
         //console.log("glpToToken getPrice", priceFeed.getPrice(_token));
 
-        return
-            _amountGlp
-                .mul(priceFeed.getGLPprice())
-                .mul(10 ** (decimals + 18))
-                .div(priceFeed.getPrice(_token))
-                .div(10 ** glpDecimals);
+        return _amountGlp.mul(priceFeed.getGLPprice()).mul(10 ** (decimals + 18)).div(priceFeed.getPrice(_token)).div(10 ** glpDecimals);
     }
 
-    function tokenToUsd(
-        address _token,
-        uint256 _amount
-    ) internal view returns (uint256) {
+    function tokenToUsd(address _token, uint256 _amount) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
-        return
-            _amount.mul(priceFeed.getPrice(_token)).div(10 ** (12 + decimals));
+        return _amount.mul(priceFeed.getPrice(_token)).div(10 ** (12 + decimals));
     }
 
-    function usdToToken(
-        uint256 _usdAmount,
-        address _token
-    ) internal view returns (uint256) {
+    function usdToToken(uint256 _usdAmount, address _token) internal view returns (uint256) {
         uint8 decimals = IERC20Metadata(_token).decimals();
-        return
-            _usdAmount.mul(10 ** decimals).div(
-                priceFeed.getPrice(_token).div(10 ** 12)
-            );
+        return _usdAmount.mul(10 ** decimals).div(priceFeed.getPrice(_token).div(10 ** 12));
     }
 
     function usdToGlp(uint256 _usdAmount) internal view returns (uint256) {
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
-        return
-            _usdAmount.mul(10 ** glpDecimals).div(10 ** 6).div(
-                priceFeed.getGLPprice()
-            );
+        return _usdAmount.mul(10 ** glpDecimals).div(10 ** 6).div(priceFeed.getGLPprice());
     }
 
     function glpToUsd(uint256 _glpAmount) internal view returns (uint256) {
         uint8 glpDecimals = IERC20Metadata(address(fsGLP)).decimals();
 
-        return
-            _glpAmount.mul(priceFeed.getGLPprice()).mul(10 ** 6).div(
-                10 ** glpDecimals
-            );
+        return _glpAmount.mul(priceFeed.getGLPprice()).mul(10 ** 6).div(10 ** glpDecimals);
     }
 
     /*----------------------------GLP mint and token conversion------------------------------*/
 
-    function swapGLPto(
-        uint256 _amountGlp,
-        address token,
-        uint256 min_receive
-    ) private returns (uint256) {
+    function swapGLPto(uint256 _amountGlp, address token, uint256 min_receive) private returns (uint256) {
         if (_amountGlp > 0) {
             uint256 glpBal = fsGLP.balanceOf(address(this));
             if (_amountGlp > glpBal) _amountGlp = glpBal;
 
-            return
-                glpRouter.unstakeAndRedeemGlp(
-                    token,
-                    _amountGlp,
-                    min_receive,
-                    address(this)
-                );
+            return glpRouter.unstakeAndRedeemGlp(token, _amountGlp, min_receive, address(this));
         }
         return 0;
     }
 
     //Mint GLP from token
-    function swaptoGLP(
-        uint256 _amount,
-        address token
-    ) private returns (uint256) {
+    function swaptoGLP(uint256 _amount, address token) private returns (uint256) {
         if (_amount > 0) {
             uint256 bal = IERC20(token).balanceOf(address(this));
             if (_amount > bal) _amount = bal;
