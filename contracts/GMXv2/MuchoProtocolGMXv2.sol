@@ -69,9 +69,21 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         tokenList.add(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1); //WETH
         tokenList.add(0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f); //WBTC
         //GM WETH-USDC
-        addPool(0x70d95587d40A2caf56bd97485aB3Eec10Bee6336, 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1, true, 25, 25);
+        addPool(
+            0x70d95587d40A2caf56bd97485aB3Eec10Bee6336,
+            0x82aF49447D8a07e3bd95BD0d56f35241523fBab1,
+            true,
+            0xd795542d99d4dc3faa6f4e4a11da9347d4f58fcfce910ccd9878f8fd79234324,
+            0x4a0e3a43fc8a8e48629f6d4e1c0c1ae7098a35d9834cd0c13446fc2b802a24a7
+        );
         //GM WBTC-USDC
-        addPool(0x47c031236e19d024b42f8AE6780E44A573170703, 0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f, true, 25, 25);
+        addPool(
+            0x47c031236e19d024b42f8AE6780E44A573170703,
+            0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f,
+            true,
+            0x695ec0e29327f505d4955e89ec25f98741aedf22d209dbc35e1d2d61e683877c,
+            0x6805e3bd65fab2c6cda687df591a5e9011a99df2ff0aa98287114c693ef8583e
+        );
     }
 
     /*---------------------------Variables--------------------------------*/
