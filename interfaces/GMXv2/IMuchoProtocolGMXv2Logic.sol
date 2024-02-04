@@ -35,6 +35,8 @@ interface IMuchoProtocolGMXv2Logic {
         GmPool[] calldata pools,
         TokenAmount[] calldata longUsdAmounts,
         uint256 shortUsdAmount,
+        TokenAmount[] calldata longUsdInvested,
+        uint256[] calldata shortUsdInvested,
         uint256 minNotInvested
     ) external returns (uint256[] memory longs, uint256[] memory shorts);
 }

@@ -714,6 +714,8 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         _updateGmWeights();
 
         TokenAmount[] longUsdAmounts;
+        TokenAmount[] longUsdInvested;
+        uint256[] shortUsdInvested;
         uint256 shortUsdAmount = getShortUSDStaked();
 
         //List of enabled pools + longAmounts:
@@ -721,12 +723,20 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         for (uint256 i = 0; i < gmPools.length; i++) {
             if (gmPools[i].enabled) {
                 enabledPools.push(gmPools[i]);
-                longUsdAmounts.push(getTokenUSDStaked(gmPools[i].long));
+                longUsdAmounts.push(TokenAmount({token:gmPools[i].long, amount:getTokenUSDStaked(gmPools[i].long)}));
+                uint256 lInvested = getTokenUSDInvested(gmPools[i].long);
+                longUsdInvested.push(TokenAmount({token:gmPools[i].long, amount:lInvested}));
+                shortUsdInvested.push(gmBalanceToUsd(i) - lInvested);
+            }
+            else{
+                longUsdAmounts.push(0);
+                longUsdInvested.push(0);
+                shortUsdInvested.push(0);
             }
         }
 
         //Ask for investments
-        (uint256[] longs, uint256[] shorts) = muchoGmxV2Logic.getTokensInvestment(gmPools, longUsdAmounts, shortUsdAmount, minNotInvestedPercentage);
+        (uint256[] longs, uint256[] shorts) = muchoGmxV2Logic.getTokensInvestment(gmPools, longUsdAmounts, shortUsdAmount, longUsdInvested, shortUsdInvested, minNotInvestedPercentage);
 
         //Apply:
         uint256 iEnabledPool = 0;

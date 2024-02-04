@@ -37,6 +37,8 @@ contract MuchoProtocolGMXv2Logic is IMuchoProtocolGMXv2Logic {
         GmPool[] calldata pools,
         TokenAmount[] calldata longUsdAmounts,
         uint256 shortUsdAmount,
+        TokenAmount[] calldata longUsdInvested,
+        uint256[] calldata shortUsdInvested,
         uint256 minNotInvested
     ) external pure returns (uint256[] memory longs, uint256[] memory shorts) {
         uint256 MIN_SHORT = 10000000;
@@ -47,26 +49,31 @@ contract MuchoProtocolGMXv2Logic is IMuchoProtocolGMXv2Logic {
         */
         uint256 totalShortUsdNeeded = 0; //Take advantage of the same loop to calculate total short needed
         for (uint256 iPool = 0; iPool < pools.length; iPool++) {
-            bool found = false;
+            if (!pools[iPool].enabled) {
+                longs[iPool] = 0;
+                shorts[iPool] = 0;
+            } else {
+                bool found = false;
 
-            for (uint256 iLong = 0; iLong < longUsdAmounts.length; iLong++) {
-                if (longUsdAmounts[iLong].token == pools[iPool].long) {
-                    found = true;
+                for (uint256 iLong = 0; iLong < longUsdAmounts.length; iLong++) {
+                    if (longUsdAmounts[iLong].token == pools[iPool].long) {
+                        found = true;
 
-                    longs[iPool] = (longUsdAmounts[iLong].amountUsd * (10000 - minNotInvested)) / 10000;
-                    shorts[iPool] = (longs[iPool] / pools[iPool].longWeight) - longs[iPool];
+                        longs[iPool] = (longUsdAmounts[iLong].amountUsd * (10000 - minNotInvested)) / 10000;
+                        shorts[iPool] = (longs[iPool] / pools[iPool].longWeight) - longs[iPool];
 
-                    totalShortUsdNeeded += shorts[iPool];
+                        totalShortUsdNeeded += shorts[iPool];
 
-                    break;
+                        break;
+                    }
                 }
-            }
 
-            require(found, 'MuchoProtocolGMXv2Logic: tokens do not match with pools');
+                require(found, 'MuchoProtocolGMXv2Logic: tokens do not match with pools');
+            }
         }
 
         //2.- Si basta el short, palante (respetando el min not invested en cada pool)
-        if (shortUsdAmount < totalShortUsdNeeded) {
+        if ((shortUsdAmount * (10000 - minNotInvested)) / 10000 < totalShortUsdNeeded) {
             uint256 availableUsdShort = shortUsdAmount;
 
             /*3.- Si no basta el short, repartir el short en cada pool:
@@ -81,18 +88,20 @@ contract MuchoProtocolGMXv2Logic is IMuchoProtocolGMXv2Logic {
                 uint256 shortPortion = availableUsdShort / pools.length;
 
                 for (uint256 iPool = 0; iPool < pools.length; iPool++) {
-                    uint256 maxLongAddable = (i == 0) ? longs[iPool] : (longUsdAmounts[iPool].amountUsd - longs[iPool]);
-                    uint256 maxShortAddable = (maxLongAddable / pools[iPool].longWeight) - maxLongAddable;
+                    if (pools[iPool].enabled) {
+                        uint256 maxLongAddable = (i == 0) ? longs[iPool] : (longUsdAmounts[iPool].amountUsd - longs[iPool]);
+                        uint256 maxShortAddable = (maxLongAddable / pools[iPool].longWeight) - maxLongAddable;
 
-                    if (maxShortAddable > shortPortion) {
-                        maxShortAddable = shortPortion;
-                        maxLongAddable = (maxShortAddable / (10000 - pools[iPool].longWeight)) - maxShortAddable;
+                        if (maxShortAddable > shortPortion) {
+                            maxShortAddable = shortPortion;
+                            maxLongAddable = (maxShortAddable / (10000 - pools[iPool].longWeight)) - maxShortAddable;
+                        }
+
+                        longs[iPool] += maxLongAddable;
+                        shorts[iPool] += maxShortAddable;
+
+                        availableUsdShort -= maxShortAddable;
                     }
-
-                    longs[iPool] += maxLongAddable;
-                    shorts[iPool] += maxShortAddable;
-
-                    availableUsdShort -= maxShortAddable;
                 }
             }
         }
