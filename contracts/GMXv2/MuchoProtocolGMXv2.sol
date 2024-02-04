@@ -52,6 +52,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+
     function protocolName() public pure returns (string memory) {
         return 'GMX V2 delta-neutral strategy';
     }
@@ -101,13 +102,14 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Client APRs for each token
     mapping(address => uint256) public aprToken;
 
-    //Pending withdraws for user-token
-    mapping(address => mapping(address => uint256)) public pendingWithdraws;
-
     /*---------------------------Parameters--------------------------------*/
 
     //GM Pools and operations
     GmPool[] public gmPools;
+
+    function addSwapPool(address _from, address _to, uint256[] _pool) external onlyAdmin {
+        swapPools[_from][_to] = _pool;
+    }
 
     function addPool(address _addr, address _long, bool _enabled, bytes32 positiveSwapFee, bytes32 negativeSwapFee) public onlyAdmin {
         require(!existsEnabledPool(_addr, _long), 'MuchoProtocolGmxV2: pool already exists');
@@ -278,6 +280,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     /*---------------------------Contracts--------------------------------*/
 
+
     //Short token
     IERC20 public shortToken = IERC20(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
 
@@ -408,24 +411,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Withdraws a token amount from the invested part
     function withdrawAndSend(address _token, uint256 _amount, address _target) external onlyOwner nonReentrant {
-        require(_amount <= getTokenInvested(_token), 'Cannot withdraw more than invested');
-
-        //Calc usd investment per pool and total usd investment, to ponderate:
-        (uint256[] usdP, uint256 totUsdP) = usdFromPoolsWhereTokenIs(_token);
-
-        //Withdraw:
-        for (uint256 i = 0; i < gmPools.length; i++) {
-            if (gmPools[i].enabled && usdP[i] > 0) {
-                uint256 usdOutFromPool = (_amount * usdP[i]) / totUsdP;
-                uint256 usdToWithdraw = usdOutFromPool.mul(100000 + slippage).div(100000);
-                uint256 gmTokenAmountToWithdraw = (usdToWithdraw * gmBalanceToUsd(i)) / 10000;
-                convertGmToToken(_token, i, gmTokenAmountToWithdraw);
-            }
-        }
-
-        amountStaked[_token] = amountStaked[_token].sub(_amount);
-        pendingWithdraws[_target][_token] += _amount;
-        emit WithdrawnInvested(_token, _target, _amount, getTokenStaked(_token));
+        revert("GMXv2: Insufficient liquidity, please try again later");
     }
 
     //Notification from the HUB of a deposit
@@ -562,6 +548,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return IERC20(_token).balanceOf(address(this));
     }
 
+
     //Total Amount of token (invested + not)
     function getTokenStaked(address _token) public view returns (uint256) {
         //console.log("   SOL - getTokenStaked", _token);
@@ -660,6 +647,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return totalUsd;
     }
 
+
     /*---------------------------INTERNAL Methods--------------------------------*/
 
     //Calculate a pool's weight
@@ -693,7 +681,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         uint256 totalUsdInvested;
         for (uint256 i = 0; i < gmPools.length; i++) {
             if (gmPools[i].enabled && (isShortToken || gmPools[i].long == _token)) {
-                usdInvested[i] = gmPoolInvestedUsd(i);
+                usdInvested[i] = gmBalanceToUsd(i);
                 totalUsdInvested += usdInvested[i];
             }
         }
@@ -753,7 +741,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
                 //Sell GM to long if needed
                 else if (longs[iEnabledPool] < (getTokenUSDInvested(gmPools[i].long) * (10000 - minBasisPointsMove)) / 10000) {
                     uint256 usdToUninvest = getTokenUSDInvested(gmPools[i].long) - longs[iEnabledPool];
-                    uint256 tokenToUninvest = usdToToken(usdToUninvest, gmPools[i].long);
+                    uint256 tokenToUninvest = usdToToken(usdToUninvest, gmPools[i].gmAddress);
                     convertGmToToken(gmPools[i].long, i, tokenToUninvest);
                 }
 
@@ -766,7 +754,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
                 //Sell GM to short if needed
                 else if (shorts[iEnabledPool] + longs[iEnabledPool] < (gmBalanceToUsd(i) * (10000 - minBasisPointsMove)) / 10000) {
                     uint256 usdToUninvest = gmBalanceToUsd(i) - shorts[iEnabledPool] - longs[iEnabledPool];
-                    uint256 tokenToUninvest = usdToToken(usdToUninvest, shortToken);
+                    uint256 tokenToUninvest = usdToToken(usdToUninvest, gmPools[i].gmAddress);
                     convertGmToToken(shortToken, i, tokenToUninvest);
                 }
 
@@ -832,11 +820,10 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     /*----------------------------GLP mint and token conversion------------------------------*/
 
     //Burn GM and get token
-    function convertGmToToken(address _token, uint256 _poolIndex, uint256 amount) private returns (uint256) {
-        //ToDo
-        IERC20(gmPools[_poolIndex].gmAddress).safeIncreaseAllowance(gmxRouter, amount);
+    function convertGmToToken(address _token, uint256 _poolIndex, uint256 _amount) private returns (uint256) {
+        IERC20(gmPools[_poolIndex].gmAddress).safeIncreaseAllowance(gmxRouter, _amount);
         exchangeRouter.sendWnt(gmxWithdrawalVault, executionFee);
-        exchangeRouter.sendTokens(_token, gmxWithdrawalVault, amount);
+        exchangeRouter.sendTokens(_token, gmxWithdrawalVault, _amount);
         WithdrawalUtils.CreateWithdrawalParams params = WithdrawalUtils.CreateWithdrawalParams({
             receiver: address(this),
             callbackContract: 0x0,
@@ -851,6 +838,14 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
             callbackGasLimit: 0
         });
         exchangeRouter.createWithdrawal(params);
+
+        if(_token == shortToken){
+        addPendingSwap(gmPool[i].long, shortToken, ) //ToDo usd amount to swap?
+
+        }
+        else{
+
+        }
     }
 
     //Mint GM from token

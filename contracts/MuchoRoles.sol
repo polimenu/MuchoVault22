@@ -29,46 +29,59 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import '@openzeppelin/contracts/access/AccessControl.sol';
 
-abstract contract MuchoRoles is AccessControl{
-    bytes32 public constant CONTRACT_OWNER = keccak256("CONTRACT_OWNER");
-    bytes32 public constant TRADER = keccak256("TRADER");
+abstract contract MuchoRoles is AccessControl {
+    bytes32 public constant CONTRACT_OWNER = keccak256('CONTRACT_OWNER');
+    bytes32 public constant TRADER = keccak256('TRADER');
+    bytes32 public constant KEEPER = keccak256('KEEPER');
 
-    constructor(){
+    constructor() {
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         //_setRoleAdmin(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    modifier onlyAdmin(){
-        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "MuchoRoles: Only for admin");
+    modifier onlyAdmin() {
+        require(hasRole(DEFAULT_ADMIN_ROLE, msg.sender), 'MuchoRoles: Only for admin');
         _;
     }
 
-    modifier onlyContractOwner(){
-        require(hasRole(CONTRACT_OWNER, msg.sender), "MuchoRoles: Only for contract owner");
+    modifier onlyContractOwner() {
+        require(hasRole(CONTRACT_OWNER, msg.sender), 'MuchoRoles: Only for contract owner');
         _;
     }
 
-    modifier onlyContractOwnerOrAdmin(){
-        require(hasRole(CONTRACT_OWNER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "MuchoRoles: Only for contract owner or admin");
+    modifier onlyContractOwnerOrAdmin() {
+        require(hasRole(CONTRACT_OWNER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), 'MuchoRoles: Only for contract owner or admin');
         _;
     }
 
-    modifier onlyTraderOrAdmin(){
-        require(hasRole(TRADER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "MuchoRoles: Only for trader or admin");
+    modifier onlyTraderOrAdmin() {
+        require(hasRole(TRADER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), 'MuchoRoles: Only for trader or admin');
         _;
     }
 
-    modifier onlyOwnerTraderOrAdmin(){
-        require(hasRole(TRADER, msg.sender) || hasRole(CONTRACT_OWNER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "MuchoRoles: Only for owner, trader or admin");
+    modifier onlyOwnerTraderOrAdmin() {
+        require(
+            hasRole(TRADER, msg.sender) || hasRole(CONTRACT_OWNER, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            'MuchoRoles: Only for owner, trader or admin'
+        );
         _;
     }
 
-
-    modifier onlyOwner(){
-        require(hasRole(CONTRACT_OWNER, msg.sender), "MuchoRoles: Only for owner");
+    modifier onlyTraderOrAdminOrKeeper() {
+        require(
+            hasRole(KEEPER, msg.sender) ||
+                hasRole(TRADER, msg.sender) ||
+                hasRole(CONTRACT_OWNER, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender),
+            'MuchoRoles: Only for keeper, owner, trader or admin'
+        );
         _;
     }
 
+    modifier onlyOwner() {
+        require(hasRole(CONTRACT_OWNER, msg.sender), 'MuchoRoles: Only for owner');
+        _;
+    }
 }
