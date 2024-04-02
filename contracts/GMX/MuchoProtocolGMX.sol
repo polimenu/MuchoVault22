@@ -64,10 +64,10 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     function init() external onlyAdmin {
-        glpApr = 1800;
+        glpApr = 1630;
         glpWethMintFee = 25;
         compoundProtocol = IMuchoProtocol(address(this));
-        rewardSplit = RewardSplit({NftPercentage: 1000, ownerPercentage: 2000});
+        rewardSplit = RewardSplit({NftPercentage: 2000, ownerPercentage: 2000});
         grantRole(CONTRACT_OWNER, 0x7832fAb4F1d23754F89F30e5319146D16789c088);
         tokenList.add(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
         tokenToSecondaryTokens[0xaf88d065e77c8cC2239327C5EDb3A432268e5831].add(0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8);
