@@ -49,6 +49,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    enum eFeeDestination {
+        DEPOSIT,
+        WITHDRAW,
+        NONE
+    }
+
     function protocolName() public pure returns (string memory) {
         return 'GMX delta-neutral strategy';
     }
@@ -88,6 +94,17 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     mapping(address => uint256) public aprToken;
 
     /*---------------------------Parameters--------------------------------*/
+
+    //Where to send mint, burn, and backing fee
+    eFeeDestination public mintFeeDestination = eFeeDestination.DEPOSIT;
+    eFeeDestination public burnFeeDestination = eFeeDestination.WITHDRAW;
+    eFeeDestination public backingFeeDestination = eFeeDestination.WITHDRAW;
+
+    function updateFeeDestinations(eFeeDestination _burn, eFeeDestination _mint, eFeeDestination _backing) external onlyAdmin {
+        burnFeeDestination = _burn;
+        mintFeeDestination = _mint;
+        backingFeeDestination = _backing;
+    }
 
     //GLP Yield APR from GMX --> used to estimate our APR
     uint256 public glpApr;
@@ -214,7 +231,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public additionalDepositFee = 0;
 
     function setAdditionalDepositFee(uint256 _fee) external onlyTraderOrAdmin {
-        require(_fee < 20, 'MuchoProtocolGMX: setAdditionalDepositFee not in range');
+        require(_fee <= 10000, 'MuchoProtocolGMX: setAdditionalDepositFee not in range');
         additionalDepositFee = _fee;
     }
 
@@ -222,7 +239,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     uint256 public additionalWithdrawFee = 0;
 
     function setAdditionalWithdrawFee(uint256 _fee) external onlyTraderOrAdmin {
-        require(_fee < 20, 'MuchoProtocolGMX: setAdditionalWithdrawFee not in range');
+        require(_fee <= 10000, 'MuchoProtocolGMX: setAdditionalWithdrawFee not in range');
         additionalWithdrawFee = _fee;
     }
 
@@ -353,11 +370,12 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         //console.log("    SOL - withdrawAndSend amount to extract in usd", tokenToUsd(_token, _amount.mul(100000 + slippage)));
 
         //Total GLP to unstake
-        uint256 glpOut = tokenToGlp(_token, _amount.mul(100000 + slippage).div(100000));
-        swapGLPto(glpOut, _token, _amount);
+        uint256 amountAfterFees = _amount.sub(getWithdrawalFee(_token, _amount));
+        uint256 glpOut = tokenToGlp(_token, amountAfterFees.mul(100000 + slippage).div(100000));
+        swapGLPto(glpOut, _token, amountAfterFees);
 
         amountStaked[_token] = amountStaked[_token].sub(_amount);
-        IERC20(_token).safeTransfer(_target, _amount);
+        IERC20(_token).safeTransfer(_target, amountAfterFees);
         emit WithdrawnInvested(_token, _target, _amount, getTokenStaked(_token));
         _updateAprs();
 
@@ -480,12 +498,37 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     /*----------------------------Public VIEWS to get the token amounts------------------------------*/
 
     function getDepositFee(address _token, uint256 _amount) public view returns (uint256) {
-        uint256 totalDepFee = getGlpDepositFee(_token, _amount).add(getGlpWithdrawalFee(_token, _amount)).add(additionalDepositFee);
+        uint256 totalDepFee = additionalDepositFee;
+        if (mintFeeDestination == eFeeDestination.DEPOSIT) {
+            totalDepFee = totalDepFee.add(getGlpDepositFee(_token, _amount));
+        }
+        if (burnFeeDestination == eFeeDestination.DEPOSIT) {
+            totalDepFee = totalDepFee.add(getGlpWithdrawalFee(_token, _amount));
+        }
+        if (backingFeeDestination == eFeeDestination.DEPOSIT) {
+            totalDepFee = totalDepFee.add(getBackingFee());
+        }
+
+        if (totalDepFee > 10000) totalDepFee = 10000;
+
         return _amount.mul(totalDepFee).div(10000);
     }
 
     function getWithdrawalFee(address _token, uint256 _amount) public view returns (uint256) {
-        return _amount.mul(additionalWithdrawFee).div(10000);
+        uint256 totalWdwFee = additionalWithdrawFee;
+        if (mintFeeDestination == eFeeDestination.WITHDRAW) {
+            totalWdwFee = totalWdwFee.add(getGlpDepositFee(_token, _amount));
+        }
+        if (burnFeeDestination == eFeeDestination.WITHDRAW) {
+            totalWdwFee = totalWdwFee.add(getGlpWithdrawalFee(_token, _amount));
+        }
+        if (backingFeeDestination == eFeeDestination.WITHDRAW) {
+            totalWdwFee = totalWdwFee.add(getBackingFee());
+        }
+
+        if (totalWdwFee > 10000) totalWdwFee = 10000;
+
+        return _amount.mul(totalWdwFee).div(10000);
     }
 
     function getGlpDepositFee(address _token, uint256 _amount) public view returns (uint256) {
@@ -575,7 +618,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Total USD value (invested + not)
-    function getTotalUSD() external view returns (uint256) {
+    function getTotalUSD() public view returns (uint256) {
         (uint256 totalUsd, , ) = getTotalUSDWithTokensUsd();
         return totalUsd;
     }
@@ -612,7 +655,7 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     }
 
     //Gets the total USD amount backed
-    function getTotalUSDBacked() external view returns (uint256) {
+    function getTotalUSDBacked() public view returns (uint256) {
         uint256 totalUsd = 0;
 
         //Add not invested part (ERC20 tokens balance of the contract)
@@ -629,6 +672,25 @@ contract MuchoProtocolGMX is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     //Gets the GLP balance of the contract
     function getGLPBalance() public view returns (uint256) {
         return fsGLP.balanceOf(address(this));
+    }
+
+    //Gets backing percentage
+    function getBacking() public view returns (uint256 backing) {
+        uint256 stakedUsd = getTotalUSD();
+        uint256 backedUsd = getTotalUSDBacked();
+
+        backing = backedUsd.mul(10000).div(stakedUsd);
+    }
+
+    //Gets backing fee
+    function getBackingFee() public view returns (uint256 fee) {
+        uint256 backing = getBacking();
+
+        if (backing > 10000) {
+            fee = 0;
+        } else {
+            fee = 10000 - backing;
+        }
     }
 
     /*---------------------------INTERNAL Methods--------------------------------*/

@@ -52,7 +52,6 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-
     function protocolName() public pure returns (string memory) {
         return 'GMX V2 delta-neutral strategy';
     }
@@ -280,7 +279,6 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     /*---------------------------Contracts--------------------------------*/
 
-
     //Short token
     IERC20 public shortToken = IERC20(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
 
@@ -411,7 +409,7 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
 
     //Withdraws a token amount from the invested part
     function withdrawAndSend(address _token, uint256 _amount, address _target) external onlyOwner nonReentrant {
-        revert("GMXv2: Insufficient liquidity, please try again later");
+        revert('GMXv2: Insufficient liquidity, please try again later');
     }
 
     //Notification from the HUB of a deposit
@@ -548,7 +546,6 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return IERC20(_token).balanceOf(address(this));
     }
 
-
     //Total Amount of token (invested + not)
     function getTokenStaked(address _token) public view returns (uint256) {
         //console.log("   SOL - getTokenStaked", _token);
@@ -647,7 +644,6 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         return totalUsd;
     }
 
-
     /*---------------------------INTERNAL Methods--------------------------------*/
 
     //Calculate a pool's weight
@@ -723,12 +719,11 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         for (uint256 i = 0; i < gmPools.length; i++) {
             if (gmPools[i].enabled) {
                 enabledPools.push(gmPools[i]);
-                longUsdAmounts.push(TokenAmount({token:gmPools[i].long, amount:getTokenUSDStaked(gmPools[i].long)}));
+                longUsdAmounts.push(TokenAmount({token: gmPools[i].long, amount: getTokenUSDStaked(gmPools[i].long)}));
                 uint256 lInvested = getTokenUSDInvested(gmPools[i].long);
-                longUsdInvested.push(TokenAmount({token:gmPools[i].long, amount:lInvested}));
+                longUsdInvested.push(TokenAmount({token: gmPools[i].long, amount: lInvested}));
                 shortUsdInvested.push(gmBalanceToUsd(i) - lInvested);
-            }
-            else{
+            } else {
                 longUsdAmounts.push(0);
                 longUsdInvested.push(0);
                 shortUsdInvested.push(0);
@@ -736,7 +731,14 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         }
 
         //Ask for investments
-        (uint256[] longs, uint256[] shorts) = muchoGmxV2Logic.getTokensInvestment(gmPools, longUsdAmounts, shortUsdAmount, longUsdInvested, shortUsdInvested, minNotInvestedPercentage);
+        (uint256[] longs, uint256[] shorts) = muchoGmxV2Logic.getTokensInvestment(
+            gmPools,
+            longUsdAmounts,
+            shortUsdAmount,
+            longUsdInvested,
+            shortUsdInvested,
+            minNotInvestedPercentage
+        );
 
         //Apply:
         uint256 iEnabledPool = 0;
@@ -849,13 +851,9 @@ contract MuchoProtocolGMXv2 is IMuchoProtocol, MuchoRoles, ReentrancyGuard {
         });
         exchangeRouter.createWithdrawal(params);
 
-        if(_token == shortToken){
-        addPendingSwap(gmPool[i].long, shortToken, ) //ToDo usd amount to swap?
-
-        }
-        else{
-
-        }
+        if (_token == shortToken) {
+            //addPendingSwap(gmPool[i].long, shortToken, 0) //ToDo usd amount to swap?
+        } else {}
     }
 
     //Mint GM from token
