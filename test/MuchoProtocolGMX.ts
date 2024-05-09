@@ -65,13 +65,14 @@ describe("MuchoProtocolGMXTest", async function () {
     await glpVault.setRouter(glpRouter.address);
 
     //Reward router
-    const mRewardRouter = await (await ethers.getContractFactory("MuchoRewardRouter")).deploy();
+    const mRewardRouter = await (await ethers.getContractFactory("MuchoRewardRouterV2")).deploy();
     //add admin as nft user
     await mRewardRouter.grantRole(await mRewardRouter.CONTRACT_OWNER(), admin.address);
-    await mRewardRouter.connect(admin).setEarningsAddress(admin.address);
+    //await mRewardRouter.connect(admin).setEarningsAddress(admin.address);
 
     //Deploy main contract
     const mMuchoGMX = await (await ethers.getContractFactory("MuchoProtocolGMX")).deploy();
+    await mRewardRouter.grantRole(await mRewardRouter.CONTRACT_OWNER(), mMuchoGMX.address);
 
     //set contracts:
     await mMuchoGMX.updatefsGLP(glp.address);
