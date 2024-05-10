@@ -27,20 +27,14 @@
                        @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#                      
                             /@@@@@@@@@@@@@@@@@@@@@@@*  */
 // SPDX-License-Identifier: MIT
-// Config data for the UI APR calculations
 pragma solidity 0.8.18;
 
-import './MuchoRoles.sol';
+contract MuchoDummy {
+    function addUserIfNotExists(address _user) external {}
 
-contract MuchoVaultConfigData is MuchoRoles {
-    uint256 public nftUsdPercentage; //2 decimals
-    uint256 public weeklyUsdNftRewards; //2 decimals
-
-    function setNftUsdPercentage(uint256 newValue) external onlyAdmin {
-        nftUsdPercentage = newValue;
+    function getUserMultiplierAndPlan(address _user) external pure returns (uint, uint256) {
+        return (0, 0);
     }
 
-    function setWeeklyUsdNftRewards(uint256 newValue) external onlyAdmin {
-        weeklyUsdNftRewards = newValue;
-    }
+    fallback() external {}
 }

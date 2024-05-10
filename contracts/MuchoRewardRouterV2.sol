@@ -63,6 +63,14 @@ contract MuchoRewardRouterV2 is ReentrancyGuard, IMuchoRewardRouterV2, MuchoRole
     //Reward tokens
     EnumerableSet.AddressSet rewardTokenList;
 
+    function addRewardToken(address _token) external onlyAdmin {
+        rewardTokenList.add(_token);
+    }
+
+    function removeRewardToken(address _token) external onlyAdmin {
+        rewardTokenList.remove(_token);
+    }
+
     //List of rewards
     mapping(address => mapping(address => uint256)) public rewards;
 
@@ -173,9 +181,6 @@ contract MuchoRewardRouterV2 is ReentrancyGuard, IMuchoRewardRouterV2, MuchoRole
 
         //Get the money
         rewardToken.safeTransfer(msg.sender, amount);
-
-        //if no balance left, remove token from list
-        if (rewardToken.balanceOf(address(this)) == 0) rewardTokenList.remove(_token);
 
         emit Withdrawn(_token, amount);
 
